@@ -120,8 +120,22 @@ export function useBookedSlotsAllCourts(date: string | undefined) {
       return (data || []).map((s: any) => {
         const [h, m] = String(s.start_time).split(":").map(Number);
         const end = `${String((h + 1) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
-        return { court_id: s.court_id, start_time: s.start_time, end_time: end, status: s.status as "pending" | "paid" };
-      }) as Array<{ court_id: string; start_time: string; end_time: string; status: "pending" | "paid" }>;
+        return {
+          court_id: s.court_id,
+          start_time: s.start_time,
+          end_time: end,
+          status: s.status as "pending" | "paid",
+          is_admin_block: Boolean(s.is_admin_block),
+          admin_note: (s.admin_note ?? null) as string | null,
+        };
+      }) as Array<{
+        court_id: string;
+        start_time: string;
+        end_time: string;
+        status: "pending" | "paid";
+        is_admin_block: boolean;
+        admin_note: string | null;
+      }>;
     },
     enabled: !!date,
   });
