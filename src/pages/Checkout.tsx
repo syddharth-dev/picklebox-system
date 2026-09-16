@@ -124,6 +124,19 @@ const Checkout = () => {
     }
 
     try {
+      // Make sure the sign-in is still valid; an expired session makes the
+      // booking request fail with a confusing "not found" error.
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          title: "Please sign in again",
+          description: "Your session expired. Sign in and resubmit your booking.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
       const { data, error } = await supabase.rpc("create_bookings_atomic", {
         p_date: bookingDate,
         p_reference: referenceNumber.trim(),
