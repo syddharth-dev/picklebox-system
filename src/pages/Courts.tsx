@@ -122,20 +122,16 @@ const Courts = () => {
 
   // Map of courtId -> [(start, end, status)] for booked ranges
   const bookedByCourt = useMemo(() => {
-    const map = new Map<string, Array<[string, string, "pending" | "paid"]>>();
+    const map = new Map<string, Map<string, { status: "pending" | "paid"; isAdmin: boolean }>>();
     (bookedRows || []).forEach((b) => {
-      if (!map.has(b.court_id)) map.set(b.court_id, []);
-      map.get(b.court_id)!.push([b.start_time, b.end_time, b.status]);
+      if (!map.has(b.court_id)) map.set(b.court_id, new Map());
+      map.get(b.court_id)!.set(b.start_time, { status: b.status, isAdmin: b.is_admin_block });
     });
     return map;
   }, [bookedRows]);
 
-  const getBookedStatus = (courtId: string, slotStart: string): "pending" | "paid" | null => {
-    const ranges = bookedByCourt.get(courtId);
-    if (!ranges) return null;
-    const hit = ranges.find(([start, end]) => slotStart >= start && slotStart < end);
-    return hit ? hit[2] : null;
-  };
+  const getBookedStatus = (courtId: string, slotStart: string) =>
+    bookedByCourt.get(courtId)?.get(slotStart) ?? null;
 
   const isBooked = (courtId: string, slotStart: string) => getBookedStatus(courtId, slotStart) !== null;
 
@@ -305,9 +301,10 @@ const Courts = () => {
                     {slot.label}
                   </div>
                   {courts.map((court) => {
-                    const status = getBookedStatus(court.id, slot.start);
-                    const booked = status !== null;
-                    const isPaid = status === "paid";
+                    const info = getBookedStatus(court.id, slot.start);
+                    const booked = info !== null;
+                    const isAdminBlock = info?.isAdmin === true;
+                    const isPaid = info?.status === "paid";
                     const key = makeKey(court.id, slot.start);
                     const isSelected = selected.has(key);
                     return (
@@ -319,8 +316,9 @@ const Courts = () => {
                         onPointerEnter={() => handlePointerEnter(court.id, slot.start)}
                         className={cn(
                           "border-l border-border h-14 md:h-16 transition-colors text-xs font-medium touch-none",
-                          booked && !isPaid && "bg-muted/60 cursor-not-allowed text-muted-foreground",
-                          booked && isPaid && "bg-destructive/15 cursor-not-allowed text-destructive",
+                          booked && isAdminBlock && "bg-accent/50 cursor-not-allowed text-foreground",
+                          booked && !isAdminBlock && !isPaid && "bg-muted/60 cursor-not-allowed text-muted-foreground",
+                          booked && !isAdminBlock && isPaid && "bg-destructive/15 cursor-not-allowed text-destructive",
                           !booked && !isSelected && "bg-background hover:bg-primary/10 cursor-pointer",
                           !booked && isSelected && "bg-primary text-primary-foreground shadow-inner"
                         )}
@@ -328,7 +326,7 @@ const Courts = () => {
                         {booked ? (
                           <span className="inline-flex items-center gap-1">
                             <Lock className="h-3 w-3" />
-                            {isPaid ? "Booked" : "Reserved"}
+                            {isAdminBlock ? "Admin Reserved" : isPaid ? "Booked" : "Reserved"}
                           </span>
                         ) : isSelected ? (
                           <span>✓</span>

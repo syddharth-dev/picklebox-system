@@ -10,6 +10,7 @@ import {
   Menu,
   ChevronLeft,
   Trophy,
+  CalendarPlus,
   QrCode,
   ClipboardList,
 } from "lucide-react";
@@ -21,6 +22,7 @@ const navItems = [
   { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
   { href: "/admin/courts", icon: MapPin, label: "Courts" },
   { href: "/admin/bookings", icon: Calendar, label: "Bookings" },
+  { href: "/admin/reservations", icon: CalendarPlus, label: "Reservations" },
   { href: "/admin/open-play", icon: Trophy, label: "Open Play" },
   { href: "/admin/check-in", icon: QrCode, label: "Check-In" },
   { href: "/admin/attendance", icon: ClipboardList, label: "Attendance" },
