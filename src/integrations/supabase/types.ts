@@ -99,6 +99,7 @@ export type Database = {
       }
       bookings: {
         Row: {
+          admin_note: string | null
           booking_date: string
           checked_in_at: string | null
           court_id: string
@@ -106,6 +107,7 @@ export type Database = {
           end_time: string
           expires_at: string | null
           id: string
+          is_admin_block: boolean
           qr_token: string
           reference_code: string | null
           start_time: string
@@ -115,6 +117,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_note?: string | null
           booking_date: string
           checked_in_at?: string | null
           court_id: string
@@ -122,6 +125,7 @@ export type Database = {
           end_time: string
           expires_at?: string | null
           id?: string
+          is_admin_block?: boolean
           qr_token?: string
           reference_code?: string | null
           start_time: string
@@ -131,6 +135,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_note?: string | null
           booking_date?: string
           checked_in_at?: string | null
           court_id?: string
@@ -138,6 +143,7 @@ export type Database = {
           end_time?: string
           expires_at?: string | null
           id?: string
+          is_admin_block?: boolean
           qr_token?: string
           reference_code?: string | null
           start_time?: string
@@ -396,6 +402,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_create_court_block: {
+        Args: {
+          p_booking_date: string
+          p_court_id: string
+          p_note: string
+          p_slot_start_times: string[]
+        }
+        Returns: Json
+      }
+      admin_release_court_block: {
+        Args: { p_booking_id: string }
+        Returns: undefined
+      }
       admin_update_open_play_registration: {
         Args: {
           p_payment_status?: Database["public"]["Enums"]["payment_status"]
@@ -445,7 +464,9 @@ export type Database = {
       get_reserved_slots: {
         Args: { p_date: string }
         Returns: {
+          admin_note: string
           court_id: string
+          is_admin_block: boolean
           start_time: string
           status: Database["public"]["Enums"]["booking_status"]
         }[]
