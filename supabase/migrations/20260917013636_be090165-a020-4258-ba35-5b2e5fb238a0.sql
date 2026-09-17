@@ -1,0 +1,2 @@
+ALTER TABLE public.bookings ALTER COLUMN qr_token SET DEFAULT encode(extensions.gen_random_bytes(16), 'hex');
+ALTER TABLE public.open_play_registrations ALTER COLUMN qr_token SET DEFAULT encode(extensions.gen_random_bytes(16), 'hex');
