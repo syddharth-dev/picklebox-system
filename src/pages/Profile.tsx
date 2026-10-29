@@ -48,7 +48,7 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-24 pb-16">
+      <main className="pt-32 pb-16 md:pt-36">
         <div className="container mx-auto px-4 max-w-2xl">
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Profile</h1>

@@ -91,7 +91,7 @@ const BookCourt = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="pt-24 pb-16">
+        <main className="pt-32 pb-16 md:pt-36">
           <div className="container mx-auto px-4">
             <Skeleton className="h-8 w-32 mb-6" />
             <div className="grid lg:grid-cols-3 gap-8">
@@ -111,7 +111,7 @@ const BookCourt = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="pt-24 pb-16">
+        <main className="pt-32 pb-16 md:pt-36">
           <div className="container mx-auto px-4 text-center">
             <h1 className="text-2xl font-bold text-foreground mb-4">Court not found</h1>
             <Link to="/courts">
@@ -130,7 +130,7 @@ const BookCourt = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="pt-24 pb-16">
+      <main className="pt-32 pb-16 md:pt-36">
         <div className="container mx-auto px-4">
           <Link to="/courts" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
             <ArrowLeft className="h-4 w-4" />

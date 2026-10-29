@@ -288,3 +288,11 @@ cd <repository-name>
 npm i
 npm run dev
 ```
+
+## Security configuration
+
+Before deploying the Supabase Edge Functions, configure the `ALLOWED_ORIGINS`
+secret with a comma-separated allowlist of the production and preview frontend
+origins (for example, `https://app.example.com,https://staging.example.com`).
+The hardened chat and booking-notification endpoints reject browser requests
+from origins outside this allowlist.

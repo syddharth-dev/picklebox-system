@@ -26,9 +26,10 @@ import {
   useOpenPlayRoster,
   useRegisterOpenPlay,
   useCancelOpenPlayRegistration,
-  type OpenPlaySessionRow,
 } from "@/hooks/useOpenPlay";
 import { QRCodeDialog } from "@/components/checkin/QRCodeDialog";
+import { openPlayErrorMessage, openPlayStart } from "@/lib/openPlay";
+import gcashQr from "@/assets/gcash-qr.png";
 
 const skillLabel: Record<string, string> = {
   all: "All Levels",
@@ -39,9 +40,10 @@ const skillLabel: Record<string, string> = {
 
 const OpenPlay = () => {
   const { user, loading: authLoading } = useAuth();
-  const { data: sessions, isLoading } = useOpenPlaySessions();
+  const { data: sessions, isLoading, error, refetch } = useOpenPlaySessions();
   const { data: courts } = useCourts();
-  const [openSession, setOpenSession] = useState<OpenPlaySessionRow | null>(null);
+  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const openSession = sessions?.find((session) => session.id === selectedSessionId);
   const [paymentRef, setPaymentRef] = useState("");
   const [qrOpen, setQrOpen] = useState(false);
   const { toast } = useToast();
@@ -54,15 +56,25 @@ const OpenPlay = () => {
     return m;
   }, [courts]);
 
-  const { data: roster } = useOpenPlayRoster(openSession?.id);
+  const { data: roster, isLoading: rosterLoading, error: rosterError, refetch: refetchRoster } = useOpenPlayRoster(openSession?.id);
+
+  const selectSession = (id: string | null) => {
+    setSelectedSessionId(id);
+    setPaymentRef("");
+    setQrOpen(false);
+  };
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const scheduled = (sessions ?? []).filter((s) => s.status === "scheduled");
+  const scheduled = (sessions ?? []).filter((s) => s.status === "scheduled"
+    && (openPlayStart(s) > Date.now() || !!s.my_status));
+  const started = !!openSession && openPlayStart(openSession) <= Date.now();
+  const canCancel = !!openSession && ["registered", "waitlisted"].includes(openSession.my_status)
+    && Date.now() < openPlayStart(openSession) - openSession.cancel_cutoff_hours * 3_600_000;
 
   const handleRegister = async () => {
-    if (!openSession) return;
+    if (!openSession || started || register.isPending || error) return;
     if (openSession.price_php > 0 && !paymentRef.trim()) {
       toast({
         title: "GCash reference required",
@@ -83,9 +95,9 @@ const OpenPlay = () => {
             : "You're registered!",
       });
       setPaymentRef("");
-      setOpenSession(null);
-    } catch (e: any) {
-      toast({ title: "Registration failed", description: e.message, variant: "destructive" });
+      selectSession(null);
+    } catch (e: unknown) {
+      toast({ title: "Registration failed", description: openPlayErrorMessage(e), variant: "destructive" });
     }
   };
 
@@ -93,18 +105,18 @@ const OpenPlay = () => {
     try {
       await cancel.mutateAsync(registrationId);
       toast({ title: "Registration cancelled" });
-      setOpenSession(null);
-    } catch (e: any) {
-      toast({ title: "Cancel failed", description: e.message, variant: "destructive" });
+      selectSession(null);
+    } catch (e: unknown) {
+      toast({ title: "Cancel failed", description: openPlayErrorMessage(e), variant: "destructive" });
     }
   };
 
-  const myRosterRow: any = roster?.find((r: any) => r.user_id === user.id);
+  const myRosterRow = roster?.find((r) => r.user_id === user.id);
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-24 pb-16">
+      <main className="pt-32 pb-16 md:pt-36">
         <div className="container mx-auto px-4">
           <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
             <div>
@@ -117,11 +129,16 @@ const OpenPlay = () => {
               </p>
             </div>
             <Badge variant="secondary" className="text-sm">
-              <Trophy className="h-3 w-3 mr-1" /> {scheduled.length} upcoming
+              <Trophy className="h-3 w-3 mr-1" /> {scheduled.filter((s) => openPlayStart(s) > Date.now()).length} upcoming
             </Badge>
           </div>
 
-          {isLoading ? (
+          {error ? (
+            <div role="alert" className="rounded-lg border border-destructive/30 p-6">
+              <p>Could not load Open Play sessions. Please try again.</p>
+              <Button variant="outline" className="mt-3" onClick={() => void refetch()}>Try again</Button>
+            </div>
+          ) : isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-56 w-full rounded-xl" />
@@ -144,8 +161,17 @@ const OpenPlay = () => {
                 return (
                   <Card
                     key={s.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
-                    onClick={() => setOpenSession(s)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`View ${s.title || "Open Play"} session`}
+                    className="hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    onClick={() => selectSession(s.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        selectSession(s.id);
+                      }
+                    }}
                   >
                     <CardContent className="p-5 space-y-3">
                       <div className="flex items-start justify-between">
@@ -215,8 +241,8 @@ const OpenPlay = () => {
         </div>
       </main>
 
-      <Dialog open={!!openSession} onOpenChange={(o) => !o && setOpenSession(null)}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={!!openSession} onOpenChange={(o) => !o && selectSession(null)}>
+        <DialogContent className="max-h-[85dvh] overflow-y-auto max-w-lg">
           {openSession && (
             <>
               <DialogHeader>
@@ -261,12 +287,19 @@ const OpenPlay = () => {
                 )}
 
                 <div>
-                  <p className="text-sm font-medium mb-2">Roster</p>
+                  <p className="text-sm font-medium mb-2">Your registration</p>
                   <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-                    {(roster ?? []).length === 0 && (
-                      <p className="text-sm text-muted-foreground">No one registered yet.</p>
+                    {rosterLoading ? (
+                      <p className="text-sm text-muted-foreground">Loading your registration...</p>
+                    ) : rosterError ? (
+                      <div role="alert" className="text-sm text-destructive">
+                        Could not load your registration.
+                        <Button variant="link" onClick={() => void refetchRoster()}>Try again</Button>
+                      </div>
+                    ) : (roster ?? []).length === 0 && (
+                      <p className="text-sm text-muted-foreground">You haven't registered for this session.</p>
                     )}
-                    {(roster ?? []).map((r: any) => (
+                    {(roster ?? []).map((r) => (
                       <div
                         key={r.registration_id}
                         className="flex items-center justify-between text-sm py-1"
@@ -278,7 +311,7 @@ const OpenPlay = () => {
                           </Badge>
                         ) : (
                           <Badge variant="outline" className="text-xs">
-                            {r.status === "checked_in" ? "Checked in" : "Registered"}
+                            {r.status === "checked_in" ? "Checked in" : r.status === "no_show" ? "No-show" : "Registered"}
                           </Badge>
                         )}
                       </div>
@@ -288,11 +321,13 @@ const OpenPlay = () => {
 
                 {!openSession.my_status && openSession.price_php > 0 && (
                   <div className="space-y-2">
+                    <img src={gcashQr} alt="Scan this GCash QR code to pay the session fee" className="mx-auto h-40 w-40 rounded-lg object-contain bg-white" />
                     <Label htmlFor="gcash-ref">GCash reference number</Label>
                     <Input
                       id="gcash-ref"
                       placeholder="e.g. 1234567890123"
                       value={paymentRef}
+                      maxLength={128}
                       onChange={(e) => setPaymentRef(e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">
@@ -302,6 +337,11 @@ const OpenPlay = () => {
                   </div>
                 )}
               </div>
+
+              <p className="text-xs text-muted-foreground">
+                Cancellation closes {openSession.cancel_cutoff_hours} hours before the session starts (Philippine time).
+                {started ? " This session has already started." : openSession.my_status && !canCancel ? " Contact the venue for changes to this registration." : ""}
+              </p>
 
               {myRosterRow && (
                 <div className="text-sm">
@@ -342,13 +382,13 @@ const OpenPlay = () => {
                   <Button
                     variant="destructive"
                     onClick={() => myRosterRow && handleCancel(myRosterRow.registration_id)}
-                    disabled={cancel.isPending || !myRosterRow}
+                    disabled={cancel.isPending || !myRosterRow || !canCancel || !!rosterError || !!error}
                   >
                     <X className="h-4 w-4 mr-1" />
                     Cancel Registration
                   </Button>
                 ) : (
-                  <Button onClick={handleRegister} disabled={register.isPending}>
+                  <Button onClick={handleRegister} disabled={register.isPending || started || !!error || !!rosterError || rosterLoading}>
                     {openSession.registered_count >= openSession.max_players
                       ? "Join Waitlist"
                       : `Register${openSession.price_php > 0 ? ` — ₱${openSession.price_php}` : ""}`}
@@ -361,7 +401,7 @@ const OpenPlay = () => {
       </Dialog>
 
       <QRCodeDialog
-        open={qrOpen}
+        open={qrOpen && !!openSession}
         onOpenChange={setQrOpen}
         kind="open_play"
         id={myRosterRow?.registration_id}

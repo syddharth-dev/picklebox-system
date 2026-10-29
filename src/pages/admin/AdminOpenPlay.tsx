@@ -14,6 +14,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -32,6 +33,7 @@ import {
 } from "@/components/ui/accordion";
 import { useAllCourts } from "@/hooks/useCourts";
 import { useToast } from "@/hooks/use-toast";
+import { openPlayErrorMessage, validateOpenPlaySession, venueDate } from "@/lib/openPlay";
 import {
   useAdminOpenPlaySessions,
   useCreateOpenPlaySession,
@@ -44,8 +46,8 @@ import {
 const SKILLS: OpenPlaySkill[] = ["all", "2.5-3.0", "3.5", "4.0+"];
 
 const AdminOpenPlay = () => {
-  const { data: sessions, isLoading } = useAdminOpenPlaySessions();
-  const { data: courts } = useAllCourts();
+  const { data: sessions, isLoading, error, refetch } = useAdminOpenPlaySessions();
+  const { data: courts, error: courtsError, refetch: refetchCourts } = useAllCourts();
   const createSession = useCreateOpenPlaySession();
   const cancelSession = useCancelOpenPlaySession();
   const { toast } = useToast();
@@ -71,21 +73,18 @@ const AdminOpenPlay = () => {
   }, [courts]);
 
   const submit = async () => {
-    if (!form.session_date || form.court_ids.length === 0) {
-      toast({ title: "Pick a date and at least one court", variant: "destructive" });
+    const validation = validateOpenPlaySession(form);
+    if (validation) {
+      toast({ title: "Check session details", description: validation, variant: "destructive" });
       return;
     }
     try {
-      await createSession.mutateAsync({
-        ...form,
-        start_time: form.start_time + ":00",
-        end_time: form.end_time + ":00",
-      });
+      await createSession.mutateAsync(form);
       toast({ title: "Session created" });
       setOpen(false);
       setForm({ ...form, session_date: "", court_ids: [], title: "", notes: "" });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Session creation failed", description: openPlayErrorMessage(e), variant: "destructive" });
     }
   };
 
@@ -105,14 +104,17 @@ const AdminOpenPlay = () => {
                 <Plus className="h-4 w-4 mr-1" /> New Session
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent className="max-h-[85dvh] overflow-y-auto max-w-lg">
               <DialogHeader>
                 <DialogTitle>Create Open Play Session</DialogTitle>
+                <DialogDescription>All session times use Philippine time.</DialogDescription>
               </DialogHeader>
+              <form onSubmit={(event) => { event.preventDefault(); void submit(); }}>
               <div className="space-y-3">
                 <div>
-                  <Label>Title (optional)</Label>
+                  <Label htmlFor="session-title">Title (optional)</Label>
                   <Input
+                    id="session-title"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                     placeholder="e.g. Friday Night Open Play"
@@ -120,25 +122,32 @@ const AdminOpenPlay = () => {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="col-span-1">
-                    <Label>Date</Label>
+                    <Label htmlFor="session-date">Date</Label>
                     <Input
+                      id="session-date"
                       type="date"
+                      min={venueDate()}
+                      required
                       value={form.session_date}
                       onChange={(e) => setForm({ ...form, session_date: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label>Start</Label>
+                    <Label htmlFor="session-start">Start</Label>
                     <Input
+                      id="session-start"
                       type="time"
+                      required
                       value={form.start_time}
                       onChange={(e) => setForm({ ...form, start_time: e.target.value })}
                     />
                   </div>
                   <div>
-                    <Label>End</Label>
+                    <Label htmlFor="session-end">End</Label>
                     <Input
+                      id="session-end"
                       type="time"
+                      required
                       value={form.end_time}
                       onChange={(e) => setForm({ ...form, end_time: e.target.value })}
                     />
@@ -147,7 +156,9 @@ const AdminOpenPlay = () => {
                 <div>
                   <Label>Courts</Label>
                   <div className="flex flex-wrap gap-3 pt-1">
-                    {courts?.map((c) => (
+                    {courtsError ? (
+                      <div role="alert">Could not load courts. <Button type="button" variant="link" onClick={() => void refetchCourts()}>Try again</Button></div>
+                    ) : courts?.filter((court) => court.is_active).map((c) => (
                       <label key={c.id} className="flex items-center gap-2 text-sm">
                         <Checkbox
                           checked={form.court_ids.includes(c.id)}
@@ -172,7 +183,7 @@ const AdminOpenPlay = () => {
                       value={form.skill}
                       onValueChange={(v) => setForm({ ...form, skill: v as OpenPlaySkill })}
                     >
-                      <SelectTrigger>
+                      <SelectTrigger aria-label="Skill level">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -185,10 +196,13 @@ const AdminOpenPlay = () => {
                     </Select>
                   </div>
                   <div>
-                    <Label>Max Players</Label>
+                    <Label htmlFor="session-capacity">Max Players</Label>
                     <Input
+                      id="session-capacity"
                       type="number"
                       min={1}
+                      step={1}
+                      required
                       value={form.max_players}
                       onChange={(e) =>
                         setForm({ ...form, max_players: Number(e.target.value) })
@@ -196,10 +210,13 @@ const AdminOpenPlay = () => {
                     />
                   </div>
                   <div>
-                    <Label>Price (₱)</Label>
+                    <Label htmlFor="session-price">Price (₱)</Label>
                     <Input
+                      id="session-price"
                       type="number"
                       min={0}
+                      step="0.01"
+                      required
                       value={form.price_php}
                       onChange={(e) =>
                         setForm({ ...form, price_php: Number(e.target.value) })
@@ -208,8 +225,14 @@ const AdminOpenPlay = () => {
                   </div>
                 </div>
                 <div>
-                  <Label>Notes (optional)</Label>
+                  <Label htmlFor="session-cutoff">Cancellation cutoff (hours before start)</Label>
+                  <Input id="session-cutoff" type="number" min={0} step={1} required value={form.cancel_cutoff_hours}
+                    onChange={(event) => setForm({ ...form, cancel_cutoff_hours: Number(event.target.value) })} />
+                </div>
+                <div>
+                  <Label htmlFor="session-notes">Notes (optional)</Label>
                   <Textarea
+                    id="session-notes"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
                     rows={2}
@@ -217,15 +240,21 @@ const AdminOpenPlay = () => {
                 </div>
               </div>
               <DialogFooter>
-                <Button onClick={submit} disabled={createSession.isPending}>
+                <Button type="submit" disabled={createSession.isPending || !!courtsError}>
                   Create
                 </Button>
               </DialogFooter>
+              </form>
             </DialogContent>
           </Dialog>
         </div>
 
-        {isLoading ? (
+        {error ? (
+          <div role="alert" className="rounded-lg border border-destructive/30 p-6">
+            Could not load Open Play sessions.
+            <Button variant="outline" className="ml-3" onClick={() => void refetch()}>Try again</Button>
+          </div>
+        ) : isLoading ? (
           <p className="text-muted-foreground">Loading...</p>
         ) : (sessions ?? []).length === 0 ? (
           <Card>
@@ -237,7 +266,7 @@ const AdminOpenPlay = () => {
           <Card>
             <CardContent className="p-4">
               <Accordion type="multiple">
-                {sessions!.map((s: any) => (
+                {sessions!.map((s) => (
                   <AccordionItem key={s.id} value={s.id}>
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex-1 flex items-center justify-between pr-4">
@@ -264,6 +293,7 @@ const AdminOpenPlay = () => {
                     <AccordionContent>
                       <SessionRoster
                         sessionId={s.id}
+                        isCancelling={cancelSession.isPending}
                         onCancelSession={async () => {
                           await cancelSession.mutateAsync(s.id);
                           toast({ title: "Session cancelled" });
@@ -286,29 +316,31 @@ function SessionRoster({
   sessionId,
   onCancelSession,
   canCancel,
+  isCancelling,
 }: {
   sessionId: string;
   onCancelSession: () => Promise<void>;
   canCancel: boolean;
+  isCancelling: boolean;
 }) {
-  const { data: roster, isLoading } = useOpenPlayRoster(sessionId);
+  const { data: roster, isLoading, error, refetch } = useOpenPlayRoster(sessionId);
   const update = useAdminUpdateRegistration();
   const { toast } = useToast();
 
   const act = async (
-    registrationId: string,
     args: Parameters<typeof update.mutateAsync>[0]
   ) => {
     try {
       await update.mutateAsync(args);
       toast({ title: "Updated" });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e.message, variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Update failed", description: openPlayErrorMessage(e), variant: "destructive" });
     }
   };
 
   if (isLoading) return <p className="text-sm text-muted-foreground p-2">Loading roster...</p>;
-  const list = (roster ?? []) as any[];
+  if (error) return <div role="alert">Could not load the roster. <Button variant="link" onClick={() => void refetch()}>Try again</Button></div>;
+  const list = roster ?? [];
 
   return (
     <div className="space-y-3 p-2">
@@ -316,7 +348,7 @@ function SessionRoster({
         <p className="text-sm text-muted-foreground">No registrations yet.</p>
       ) : (
         <div className="space-y-2">
-          {list.map((r: any) => (
+          {list.map((r) => (
             <div
               key={r.registration_id}
               className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30"
@@ -332,12 +364,13 @@ function SessionRoster({
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                {r.payment_status === "pending" && (
+                {canCancel && r.payment_status === "pending" && (
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={update.isPending}
                     onClick={() =>
-                      act(r.registration_id, {
+                      act({
                         registrationId: r.registration_id,
                         paymentStatus: "completed",
                       })
@@ -346,12 +379,14 @@ function SessionRoster({
                     <Check className="h-4 w-4 mr-1" /> Verify
                   </Button>
                 )}
-                {r.status === "registered" && (
+                {canCancel && r.status === "registered" && (
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={update.isPending || r.payment_status !== "completed"}
+                    title={r.payment_status !== "completed" ? "Verify payment before check-in" : undefined}
                     onClick={() =>
-                      act(r.registration_id, {
+                      act({
                         registrationId: r.registration_id,
                         status: "checked_in",
                       })
@@ -360,12 +395,14 @@ function SessionRoster({
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Check in
                   </Button>
                 )}
-                {(r.status === "registered" || r.status === "waitlisted") && (
+                {canCancel && (r.status === "registered" || r.status === "waitlisted") && (
                   <Button
                     size="sm"
                     variant="ghost"
+                    disabled={update.isPending}
+                    aria-label={`Mark ${r.full_name || "player"} as no-show`}
                     onClick={() =>
-                      act(r.registration_id, {
+                      act({
                         registrationId: r.registration_id,
                         status: "no_show",
                       })
@@ -380,7 +417,10 @@ function SessionRoster({
         </div>
       )}
       {canCancel && (
-        <Button size="sm" variant="destructive" onClick={onCancelSession}>
+        <Button size="sm" variant="destructive" disabled={isCancelling} onClick={async () => {
+          try { await onCancelSession(); }
+          catch (error: unknown) { toast({ title: "Session cancellation failed", description: openPlayErrorMessage(error), variant: "destructive" }); }
+        }}>
           <X className="h-4 w-4 mr-1" /> Cancel Session
         </Button>
       )}

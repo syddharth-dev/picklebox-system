@@ -1,126 +1,19 @@
 import { Link, useLocation } from "react-router-dom";
-import {
-  LayoutDashboard,
-  Calendar,
-  MapPin,
-  CreditCard,
-  Users,
-  Settings,
-  LogOut,
-  Menu,
-  ChevronLeft,
-  Trophy,
-  CalendarPlus,
-  QrCode,
-  ClipboardList,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Calendar, CalendarPlus, ClipboardList, CreditCard, LayoutDashboard, LogOut, MapPin, QrCode, Settings, Trophy, Users } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { AppLogo } from "@/components/AppLogo";
 
 const navItems = [
-  { href: "/admin", icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/admin/courts", icon: MapPin, label: "Courts" },
-  { href: "/admin/bookings", icon: Calendar, label: "Bookings" },
-  { href: "/admin/reservations", icon: CalendarPlus, label: "Reservations" },
-  { href: "/admin/open-play", icon: Trophy, label: "Open Play" },
-  { href: "/admin/check-in", icon: QrCode, label: "Check-In" },
-  { href: "/admin/attendance", icon: ClipboardList, label: "Attendance" },
-  { href: "/admin/payments", icon: CreditCard, label: "Payments" },
-  { href: "/admin/users", icon: Users, label: "Users" },
-  { href: "/admin/settings", icon: Settings, label: "Settings" },
+  { href: "/admin", icon: LayoutDashboard, label: "Overview" }, { href: "/admin/courts", icon: MapPin, label: "Courts" },
+  { href: "/admin/bookings", icon: Calendar, label: "Bookings" }, { href: "/admin/reservations", icon: CalendarPlus, label: "Reservations" },
+  { href: "/admin/open-play", icon: Trophy, label: "Open Play" }, { href: "/admin/check-in", icon: QrCode, label: "Check-in" },
+  { href: "/admin/attendance", icon: ClipboardList, label: "Attendance" }, { href: "/admin/payments", icon: CreditCard, label: "Payments" },
+  { href: "/admin/users", icon: Users, label: "Members" }, { href: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-}
-
-export function AdminLayout({ children }: AdminLayoutProps) {
+export function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Sidebar */}
-      <aside
-        className={cn(
-          "fixed left-0 top-0 z-40 h-screen transition-all duration-300",
-          isSidebarOpen ? "w-64" : "w-20"
-        )}
-      >
-        <div className="flex h-full flex-col bg-sidebar border-r border-sidebar-border">
-          {/* Logo */}
-          <div className="flex h-16 items-center justify-between px-4 border-b border-sidebar-border">
-            {isSidebarOpen && (
-              <Link to="/admin" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg gradient-primary">
-                  <Calendar className="h-4 w-4 text-primary-foreground" />
-                </div>
-                <span className="text-lg font-bold text-sidebar-foreground">
-                  Admin
-                </span>
-              </Link>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-              className="text-sidebar-foreground hover:bg-sidebar-accent"
-            >
-              {isSidebarOpen ? (
-                <ChevronLeft className="h-5 w-5" />
-              ) : (
-                <Menu className="h-5 w-5" />
-              )}
-            </Button>
-          </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => {
-              const isActive = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors",
-                    isActive
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                  )}
-                >
-                  <item.icon className="h-5 w-5 flex-shrink-0" />
-                  {isSidebarOpen && (
-                    <span className="font-medium">{item.label}</span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-sidebar-border">
-            <Link
-              to="/"
-              className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
-            >
-              <LogOut className="h-5 w-5" />
-              {isSidebarOpen && <span className="font-medium">Exit Admin</span>}
-            </Link>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main
-        className={cn(
-          "min-h-screen transition-all duration-300",
-          isSidebarOpen ? "ml-64" : "ml-20"
-        )}
-      >
-        {children}
-      </main>
-    </div>
-  );
+  return <SidebarProvider defaultOpen><Sidebar collapsible="icon" className="border-sidebar-border"><SidebarHeader className="px-3 py-4 group-data-[collapsible=icon]:px-2"><Link to="/admin" className="flex items-center gap-3 overflow-hidden"><AppLogo className="h-12 w-16 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8" /><span className="whitespace-nowrap text-sm font-extrabold tracking-tight group-data-[collapsible=icon]:hidden">PICKLE BOX</span></Link></SidebarHeader><SidebarContent><SidebarGroup><SidebarGroupLabel>Operations</SidebarGroupLabel><SidebarGroupContent><SidebarMenu>{navItems.map((item) => <SidebarMenuItem key={item.href}><SidebarMenuButton asChild tooltip={item.label} isActive={location.pathname === item.href}><Link to={item.href}><item.icon /><span>{item.label}</span></Link></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu></SidebarGroupContent></SidebarGroup></SidebarContent><SidebarFooter className="p-3"><SidebarMenu><SidebarMenuItem><SidebarMenuButton asChild tooltip="Exit admin"><Link to="/"><LogOut /><span>Exit admin</span></Link></SidebarMenuButton></SidebarMenuItem></SidebarMenu></SidebarFooter></Sidebar><SidebarInset><header className="flex h-14 items-center justify-between border-b bg-card px-4 md:px-6"><div className="flex items-center gap-3"><SidebarTrigger /><p className="eyebrow hidden text-muted-foreground sm:block">Admin workspace</p></div><div className="flex items-center gap-2"><ThemeToggle className="h-8 w-8" /><Button asChild size="sm" variant="outline" className="h-8"><Link to="/admin/check-in"><QrCode className="mr-2 h-3.5 w-3.5" />Check-in</Link></Button></div></header>{children}</SidebarInset></SidebarProvider>;
 }

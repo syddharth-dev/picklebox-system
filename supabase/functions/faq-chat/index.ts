@@ -1,8 +1,29 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const baseCorsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin");
+  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!origin || !allowedOrigins.includes(origin)) return baseCorsHeaders;
+  return { ...baseCorsHeaders, "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+}
+
+function isAllowedBrowserOrigin(req: Request) {
+  const origin = req.headers.get("Origin");
+  if (!origin) return true;
+  return (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",")
+    .map((value) => value.trim())
+    .includes(origin);
+}
 
 const SYSTEM_PROMPT = `You are "PickleBot", the friendly FAQ assistant for **The Pickle Box** — a pickleball court booking website located at Endrina St., San Carlos City, Negros Occidental, Philippines.
 
@@ -32,16 +53,55 @@ Do not answer general knowledge, coding, math, other businesses, personal advice
 Keep answers concise, warm, and use markdown (bold, bullet lists) when helpful.`;
 
 Deno.serve(async (req) => {
+  const headers = corsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return isAllowedBrowserOrigin(req)
+      ? new Response(null, { headers })
+      : new Response(null, { status: 403 });
+  }
+  if (req.method !== "POST" || !isAllowedBrowserOrigin(req)) {
+    return new Response(JSON.stringify({ error: "Method or origin not allowed" }), {
+      status: req.method === "POST" ? 403 : 405,
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
   }
 
   try {
+    const authHeader = req.headers.get("Authorization");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const token = authHeader.slice("Bearer ".length);
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims?.sub) {
+      return new Response(JSON.stringify({ error: "Authentication required" }), {
+        status: 401,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: quotaAllowed, error: quotaError } = await userClient.rpc("consume_faq_chat_quota");
+    if (quotaError || !quotaAllowed) {
+      return new Response(JSON.stringify({ error: "Too many requests. Please wait a minute and try again." }), {
+        status: 429,
+        headers: { ...headers, "Content-Type": "application/json" },
+      });
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       return new Response(JSON.stringify({ error: "AI not configured" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -49,7 +109,7 @@ Deno.serve(async (req) => {
     if (!Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Invalid messages" }), {
         status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -77,18 +137,18 @@ Deno.serve(async (req) => {
       if (resp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...headers, "Content-Type": "application/json" },
         });
       }
       if (resp.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted. Please contact the site owner." }), {
           status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...headers, "Content-Type": "application/json" },
         });
       }
       return new Response(JSON.stringify({ error: "AI request failed" }), {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
@@ -97,13 +157,13 @@ Deno.serve(async (req) => {
 
     return new Response(JSON.stringify({ reply }), {
       status: 200,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...headers, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("faq-chat error:", err);
     return new Response(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...headers, "Content-Type": "application/json" },
     });
   }
 });

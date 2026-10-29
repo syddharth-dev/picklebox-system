@@ -32,7 +32,7 @@ export function QRCodeDialog({
   referenceCode,
   checkedInAt,
 }: QRCodeDialogProps) {
-  const { data: token, isLoading, error } = useMyQrToken(kind, id, open);
+  const { data: token, isLoading, isFetching, error } = useMyQrToken(kind, id, open);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,16 +45,16 @@ export function QRCodeDialog({
         </DialogHeader>
 
         <div className="flex flex-col items-center gap-4">
-          {isLoading && <Skeleton className="h-56 w-56 rounded-xl" />}
+          {(isLoading || isFetching) && <Skeleton className="h-56 w-56 rounded-xl" />}
 
           {error && (
-            <div className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+            <div role="alert" className="flex items-start gap-2 rounded-lg border border-border bg-muted/40 p-4 text-sm text-muted-foreground">
               <AlertCircle className="h-4 w-4 mt-0.5 shrink-0 text-destructive" />
               <span>{checkinErrorMessage(error)}</span>
             </div>
           )}
 
-          {token && (
+          {token && !error && !isFetching && (
             <>
               <div className="rounded-xl bg-white p-4 shadow-sm">
                 <QRCodeSVG value={token} size={208} level="M" marginSize={0} />

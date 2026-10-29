@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -39,59 +39,6 @@ export function useBooking(id: string | undefined) {
   });
 }
 
-export function useCreateBooking() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (booking: {
-      court_id: string;
-      booking_date: string;
-      start_time: string;
-      end_time: string;
-      total_amount: number;
-    }) => {
-      // Derive user_id server-side from the session; never trust the client.
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) throw authError ?? new Error("Not authenticated");
-      const { data, error } = await supabase
-        .from("bookings")
-        .insert({ ...booking, user_id: authData.user.id })
-        .select("*, courts(name, description, price_per_hour)")
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-    },
-  });
-}
-
-export function useCreatePayment() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (payment: {
-      booking_id: string;
-      amount: number;
-      payment_method: string;
-      transaction_reference?: string;
-    }) => {
-      // Derive user_id server-side from the session; never trust the client.
-      const { data: authData, error: authError } = await supabase.auth.getUser();
-      if (authError || !authData.user) throw authError ?? new Error("Not authenticated");
-      const { data, error } = await supabase
-        .from("payments")
-        .insert({ ...payment, user_id: authData.user.id })
-        .select()
-        .single();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["bookings"] });
-    },
-  });
-}
-
 export function useBookedSlots(courtId: string | undefined, date: string | undefined) {
   return useQuery({
     queryKey: ["booked-slots", courtId, date],
@@ -113,11 +60,12 @@ export function useBookedSlots(courtId: string | undefined, date: string | undef
 export function useBookedSlotsAllCourts(date: string | undefined) {
   return useQuery({
     queryKey: ["booked-slots-all", date],
+    refetchInterval: 15_000,
     queryFn: async () => {
       if (!date) return [];
       const { data, error } = await supabase.rpc("get_reserved_slots", { p_date: date });
       if (error) throw error;
-      return (data || []).map((s: any) => {
+      return (data || []).map((s) => {
         const [h, m] = String(s.start_time).split(":").map(Number);
         const end = `${String((h + 1) % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
         return {

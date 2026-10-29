@@ -3,8 +3,9 @@ import { X, Send, Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import picklebotIcon from "@/assets/picklebot-icon.png.asset.json";
+import picklebotIcon from "@/assets/picklebot-avatar.jpg";
 
 type Msg = { role: "user" | "assistant"; content: string };
 
@@ -15,6 +16,7 @@ const GREETING: Msg = {
 };
 
 export function FAQChatbot() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Msg[]>([GREETING]);
   const [input, setInput] = useState("");
@@ -33,6 +35,13 @@ export function FAQChatbot() {
   const send = async () => {
     const text = input.trim();
     if (!text || loading) return;
+    if (!user) {
+      setMessages((current) => [
+        ...current,
+        { role: "assistant", content: "Please sign in to chat with PickleBot." },
+      ]);
+      return;
+    }
     const next = [...messages, { role: "user" as const, content: text }];
     setMessages(next);
     setInput("");
@@ -70,7 +79,7 @@ export function FAQChatbot() {
           <X className="h-6 w-6" />
         ) : (
           <img
-            src={picklebotIcon.url}
+            src={picklebotIcon}
             alt="PickleBot"
             className="h-11 w-11 object-contain rounded-full"
           />
@@ -90,7 +99,7 @@ export function FAQChatbot() {
           <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-primary text-primary-foreground">
             <div className="h-9 w-9 rounded-full bg-primary-foreground/20 flex items-center justify-center overflow-hidden">
               <img
-                src={picklebotIcon.url}
+                src={picklebotIcon}
                 alt="PickleBot"
                 className="h-9 w-9 object-contain"
               />
@@ -117,7 +126,9 @@ export function FAQChatbot() {
                   )}
                 >
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-strong:text-current">
-                    <ReactMarkdown>{m.content}</ReactMarkdown>
+                    <ReactMarkdown allowedElements={["p", "em", "strong", "ul", "ol", "li", "br", "code"]}>
+                      {m.content}
+                    </ReactMarkdown>
                   </div>
                 </div>
               </div>
@@ -142,6 +153,7 @@ export function FAQChatbot() {
           >
             <input
               ref={inputRef}
+              aria-label="Ask PickleBot"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about bookings, payments…"
