@@ -1,10 +1,10 @@
 project_id = "lkdmueujbxyeiqunpiso"
 
 [functions.cleanup-expired-bookings]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-booking-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.faq-chat]
-verify_jwt = false
+verify_jwt = true

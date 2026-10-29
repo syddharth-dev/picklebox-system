@@ -1,14 +1,41 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
+const baseCorsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+function corsHeaders(req: Request) {
+  const origin = req.headers.get("Origin");
+  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
+    .split(",").map((value) => value.trim()).filter(Boolean);
+  if (!origin || !allowedOrigins.includes(origin)) return baseCorsHeaders;
+  return { ...baseCorsHeaders, "Access-Control-Allow-Origin": origin, Vary: "Origin" };
+}
+
+function isAllowedBrowserOrigin(req: Request) {
+  const origin = req.headers.get("Origin");
+  return !origin || (Deno.env.get("ALLOWED_ORIGINS") ?? "").split(",").map((value) => value.trim()).includes(origin);
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? "").replace(/[&<>'"]/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;",
+  }[character]!));
+}
+
 Deno.serve(async (req) => {
+  const headers = corsHeaders(req);
   if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+    return isAllowedBrowserOrigin(req)
+      ? new Response(null, { headers })
+      : new Response(null, { status: 403 });
+  }
+  if (req.method !== "POST" || !isAllowedBrowserOrigin(req)) {
+    return new Response(JSON.stringify({ error: "Method or origin not allowed" }), {
+      status: req.method === "POST" ? 403 : 405,
+      headers: { ...headers, "Content-Type": "application/json" },
+    });
   }
 
   try {
@@ -21,7 +48,7 @@ Deno.serve(async (req) => {
     if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -34,7 +61,7 @@ Deno.serve(async (req) => {
     if (claimsError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 401, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -45,14 +72,14 @@ Deno.serve(async (req) => {
     if (!bookingId || !type) {
       return new Response(
         JSON.stringify({ error: "Missing bookingId or type" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
     if (!["confirmation", "cancellation"].includes(type)) {
       return new Response(
         JSON.stringify({ error: "Invalid notification type" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
@@ -69,20 +96,22 @@ Deno.serve(async (req) => {
       console.error("Booking not found:", bookingError);
       return new Response(
         JSON.stringify({ error: "Booking not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
     // Authorize: caller must own the booking or be an admin
     if (booking.user_id !== callerId) {
-      const { data: isAdmin } = await supabase.rpc("has_role", {
-        _user_id: callerId,
-        _role: "admin",
-      });
-      if (!isAdmin) {
+      const { data: adminRole, error: adminRoleError } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("user_id", callerId)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (adminRoleError || !adminRole) {
         return new Response(
           JSON.stringify({ error: "Forbidden" }),
-          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
         );
       }
     }
@@ -96,13 +125,13 @@ Deno.serve(async (req) => {
       console.error("User not found:", userError);
       return new Response(
         JSON.stringify({ error: "User not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 404, headers: { ...headers, "Content-Type": "application/json" } }
       );
     }
 
     const email = userData.user.email;
-    const courtName = (booking as any).courts?.name || "Court";
-    const refCode = booking.reference_code || "N/A";
+    const courtName = escapeHtml((booking as any).courts?.name || "Court");
+    const refCode = escapeHtml(booking.reference_code || "N/A");
 
     // Build email content
     let subject: string;
@@ -143,16 +172,16 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: `${type} notification prepared for ${email}`,
+        message: `${type} notification prepared`,
         note: "To send real emails, add RESEND_API_KEY secret and configure Resend"
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...headers, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Unexpected error:", err);
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...headers, "Content-Type": "application/json" } }
     );
   }
 });

@@ -133,7 +133,7 @@ const Bookings = () => {
             <p className="text-xs text-muted-foreground">Ref: {booking.reference_code || "—"}</p>
             <p className="text-lg font-bold text-foreground">₱{booking.total_amount}</p>
           </div>
-          {(booking.status === "paid" || booking.status === "pending") && (
+          {booking.status === "pending" && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -161,7 +161,7 @@ const Bookings = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="pt-24 pb-16">
+      <main className="pt-32 pb-16 md:pt-36">
         <div className="container mx-auto px-4">
           <div className="mb-8">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
