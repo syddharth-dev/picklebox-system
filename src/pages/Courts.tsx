@@ -112,6 +112,11 @@ const Courts = () => {
           queryClient.invalidateQueries({ queryKey: ["booked-slots-all", dateStr] });
         }
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "open_play_sessions" },
+        () => void queryClient.invalidateQueries({ queryKey: ["booked-slots-all", dateStr] }),
+      )
       .subscribe();
 
     return () => {
@@ -122,12 +127,21 @@ const Courts = () => {
 
   // Map of courtId -> [(start, end, status)] for booked ranges
   const bookedByCourt = useMemo(() => {
-    const map = new Map<string, Map<string, { status: "pending" | "paid"; isAdmin: boolean }>>();
+    const map = new Map<string, Map<string, { status: "pending" | "paid"; isAdmin: boolean; note: string | null }>>();
     (bookedRows || []).forEach((b) => {
       if (!map.has(b.court_id)) map.set(b.court_id, new Map());
-      map.get(b.court_id)!.set(b.start_time, { status: b.status, isAdmin: b.is_admin_block });
+      map.get(b.court_id)!.set(b.start_time, { status: b.status, isAdmin: b.is_admin_block, note: b.admin_note });
     });
     return map;
+  }, [bookedRows]);
+
+  useEffect(() => {
+    if (!bookedRows) return;
+    const reserved = new Set(bookedRows.map((row) => makeKey(row.court_id, row.start_time)));
+    setSelected((previous) => {
+      const available = new Set([...previous].filter((key) => !reserved.has(key)));
+      return available.size === previous.size ? previous : available;
+    });
   }, [bookedRows]);
 
   const getBookedStatus = (courtId: string, slotStart: string) =>
@@ -217,7 +231,7 @@ const Courts = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-24 pb-32">
+      <main className="pt-32 pb-32 md:pt-36">
         <div className="container mx-auto px-4">
           <div className="mb-6">
             <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
@@ -312,6 +326,7 @@ const Courts = () => {
                         key={court.id}
                         type="button"
                         disabled={booked}
+                        aria-label={`${court.name}, ${slot.label}${booked ? ", reserved" : ""}`}
                         onPointerDown={(e) => handlePointerDown(court.id, slot.start, e)}
                         onPointerEnter={() => handlePointerEnter(court.id, slot.start)}
                         className={cn(
@@ -326,7 +341,7 @@ const Courts = () => {
                         {booked ? (
                           <span className="inline-flex items-center gap-1">
                             <Lock className="h-3 w-3" />
-                            {isAdminBlock ? "Admin Reserved" : isPaid ? "Booked" : "Reserved"}
+                            {isAdminBlock ? info.note === "Open Play" ? "Open Play" : "Admin Reserved" : isPaid ? "Booked" : "Reserved"}
                           </span>
                         ) : isSelected ? (
                           <span>✓</span>

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { venueDate } from "@/lib/openPlay";
 
 export function useIsAdmin() {
   const { user } = useAuth();
@@ -75,8 +76,9 @@ export interface TodayOpenPlaySession {
 export function useTodayOpenPlay() {
   return useQuery({
     queryKey: ["admin", "today", "open-play"],
+    refetchInterval: 15_000,
     queryFn: async (): Promise<TodayOpenPlaySession[]> => {
-      const today = new Date().toISOString().slice(0, 10);
+      const today = venueDate();
       const { data: sessions, error } = await supabase
         .from("open_play_sessions")
         .select("*")
@@ -85,12 +87,13 @@ export function useTodayOpenPlay() {
       if (error) throw error;
       const rows = sessions ?? [];
       if (rows.length === 0) return [];
-      const { data: regs } = await supabase
+      const { data: regs, error: registrationsError } = await supabase
         .from("open_play_registrations")
         .select("session_id, status, checked_in_at")
-        .in("session_id", rows.map((s: any) => s.id));
-      return rows.map((s: any) => {
-        const mine = (regs ?? []).filter((r: any) => r.session_id === s.id);
+        .in("session_id", rows.map((s) => s.id));
+      if (registrationsError) throw registrationsError;
+      return rows.map((s) => {
+        const mine = (regs ?? []).filter((r) => r.session_id === s.id);
         return {
           id: s.id,
           title: s.title,
@@ -99,9 +102,9 @@ export function useTodayOpenPlay() {
           skill: s.skill,
           max_players: s.max_players,
           status: s.status,
-          registered: mine.filter((r: any) => r.status === "registered" || r.status === "checked_in").length,
-          waitlisted: mine.filter((r: any) => r.status === "waitlisted").length,
-          checked_in: mine.filter((r: any) => !!r.checked_in_at).length,
+          registered: mine.filter((r) => r.status === "registered" || r.status === "checked_in").length,
+          waitlisted: mine.filter((r) => r.status === "waitlisted").length,
+          checked_in: mine.filter((r) => r.status === "checked_in" && !!r.checked_in_at).length,
         };
       });
     },

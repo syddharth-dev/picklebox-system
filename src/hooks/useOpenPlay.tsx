@@ -1,7 +1,8 @@
 import { useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { validateOpenPlaySession } from "@/lib/openPlay";
 
 export type OpenPlaySkill = "all" | "2.5-3.0" | "3.5" | "4.0+";
 export type OpenPlayRegistrationStatus =
@@ -30,33 +31,61 @@ export interface OpenPlaySessionRow {
   my_waitlist_position: number | null;
 }
 
-export function useOpenPlaySessions() {
+export interface OpenPlayRosterRow {
+  registration_id: string;
+  user_id: string;
+  status: OpenPlayRegistrationStatus;
+  waitlist_position: number | null;
+  payment_status: "pending" | "completed" | "failed" | "refunded";
+  payment_reference: string | null;
+  full_name: string | null;
+  registered_at: string;
+  checked_in_at: string | null;
+}
+
+export function invalidateOpenPlayQueries(queryClient: QueryClient) {
+  return queryClient.invalidateQueries({
+    predicate: ({ queryKey }) => queryKey.includes("open-play")
+      || (queryKey[0] === "admin" && queryKey[1] === "attendance" && queryKey[2] === "session")
+      || (queryKey[0] === "qr-token" && queryKey[1] === "open_play")
+      || queryKey[0] === "booked-slots-all" || queryKey[0] === "booked-slots",
+  });
+}
+
+function useOpenPlayUpdates() {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id;
 
   useEffect(() => {
+    if (!userId) return;
     const channel = supabase
-      .channel("open-play-live")
+      .channel(`open-play-live-${userId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "open_play_sessions" },
-        () => queryClient.invalidateQueries({ queryKey: ["open-play", "sessions"] })
+        () => void invalidateOpenPlayQueries(queryClient)
       )
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "open_play_registrations" },
-        () => {
-          queryClient.invalidateQueries({ queryKey: ["open-play", "sessions"] });
-          queryClient.invalidateQueries({ queryKey: ["open-play", "roster"] });
-        }
+        () => void invalidateOpenPlayQueries(queryClient)
       )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [queryClient, userId]);
+}
 
+export function useOpenPlaySessions() {
+  const { user } = useAuth();
+  useOpenPlayUpdates();
   return useQuery({
-    queryKey: ["open-play", "sessions"],
+    queryKey: ["open-play", "sessions", user?.id],
+    enabled: !!user,
+    // RLS intentionally hides other players' registration events.
+    refetchInterval: 15_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("list_open_play_sessions");
       if (error) throw error;
@@ -66,17 +95,19 @@ export function useOpenPlaySessions() {
 }
 
 export function useOpenPlayRoster(sessionId: string | undefined) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ["open-play", "roster", sessionId],
+    queryKey: ["open-play", "roster", sessionId, user?.id],
     queryFn: async () => {
       if (!sessionId) return [];
       const { data, error } = await supabase.rpc("get_open_play_roster", {
         p_session_id: sessionId,
       });
       if (error) throw error;
-      return data ?? [];
+      return (data ?? []) as unknown as OpenPlayRosterRow[];
     },
-    enabled: !!sessionId,
+    enabled: !!sessionId && !!user,
+    refetchInterval: 15_000,
   });
 }
 
@@ -92,7 +123,7 @@ export function useRegisterOpenPlay() {
       return data as { registration_id: string; status: string; waitlist_position: number | null };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["open-play"] });
+      return invalidateOpenPlayQueries(queryClient);
     },
   });
 }
@@ -108,7 +139,7 @@ export function useCancelOpenPlayRegistration() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["open-play"] });
+      return invalidateOpenPlayQueries(queryClient);
     },
   });
 }
@@ -133,8 +164,12 @@ export function useMyOpenPlayRegistrations() {
 }
 
 export function useAdminOpenPlaySessions() {
+  const { user } = useAuth();
+  useOpenPlayUpdates();
   return useQuery({
-    queryKey: ["admin", "open-play", "sessions"],
+    queryKey: ["admin", "open-play", "sessions", user?.id],
+    enabled: !!user,
+    refetchInterval: 15_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("open_play_sessions")
@@ -164,6 +199,8 @@ export function useCreateOpenPlaySession() {
       notes?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
+      const validation = validateOpenPlaySession(session);
+      if (validation) throw new Error(validation);
       const { data, error } = await supabase
         .from("open_play_sessions")
         .insert({ ...session, created_by: user.id })
@@ -173,8 +210,7 @@ export function useCreateOpenPlaySession() {
       return data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["open-play"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "open-play"] });
+      return invalidateOpenPlayQueries(queryClient);
     },
   });
 }
@@ -183,15 +219,18 @@ export function useCancelOpenPlaySession() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (sessionId: string) => {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("open_play_sessions")
         .update({ status: "cancelled" })
-        .eq("id", sessionId);
+        .eq("id", sessionId)
+        .eq("status", "scheduled")
+        .select("id")
+        .single();
       if (error) throw error;
+      if (!data) throw new Error("SESSION_NOT_OPEN");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["open-play"] });
-      queryClient.invalidateQueries({ queryKey: ["admin", "open-play"] });
+      return invalidateOpenPlayQueries(queryClient);
     },
   });
 }
@@ -212,7 +251,7 @@ export function useAdminUpdateRegistration() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["open-play"] });
+      return invalidateOpenPlayQueries(queryClient);
     },
   });
 }
