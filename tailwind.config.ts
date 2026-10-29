@@ -13,8 +13,14 @@ export default {
   		}
   	},
   	extend: {
-  		colors: {
-  			border: 'hsl(var(--border))',
+		colors: {
+			brand: {
+				ink: 'hsl(var(--brand-ink))',
+				chalk: 'hsl(var(--brand-chalk))',
+				lime: 'hsl(var(--brand-lime))',
+				night: 'hsl(var(--brand-night))',
+			},
+			border: 'hsl(var(--border))',
   			input: 'hsl(var(--input))',
   			ring: 'hsl(var(--ring))',
   			background: 'hsl(var(--background))',
@@ -96,7 +102,7 @@ export default {
   		},
   		fontFamily: {
   			sans: [
-  				'DM Sans',
+				'Manrope',
   				'ui-sans-serif',
   				'system-ui',
   				'-apple-system',
@@ -109,7 +115,7 @@ export default {
   				'sans-serif'
   			],
   			serif: [
-  				'Crimson Pro',
+				'Plus Jakarta Sans',
   				'ui-serif',
   				'Georgia',
   				'Cambria',

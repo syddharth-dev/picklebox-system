@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "react-router-dom";
 import {
   Calendar,
@@ -37,10 +38,10 @@ const statusColors: Record<string, string> = {
 };
 
 const PIE_COLORS = [
-  "hsl(152, 76%, 36%)",
-  "hsl(199, 89%, 48%)",
-  "hsl(45, 93%, 58%)",
-  "hsl(0, 84%, 60%)",
+  "hsl(var(--chart-1))",
+  "hsl(var(--chart-2))",
+  "hsl(var(--chart-3))",
+  "hsl(var(--chart-5))",
 ];
 
 const fmtTime = (t: string) => {
@@ -114,10 +115,11 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="p-6 lg:p-8">
+      <div className="p-4 md:p-6 lg:p-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
+            <p className="eyebrow text-secondary">Operations overview</p>
+            <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">Today at The Pickle Box</h1>
             <p className="text-muted-foreground">
               {format(new Date(), "EEEE, MMMM d, yyyy")} — everything happening today.
             </p>
@@ -337,34 +339,32 @@ const AdminDashboard = () => {
             ) : recentBookings.length === 0 ? (
               <p className="text-muted-foreground text-center py-8">No bookings yet</p>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Reference</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Court</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Date</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Amount</th>
-                      <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+              <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Court</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {recentBookings.map((booking: any) => (
-                      <tr key={booking.id} className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors">
+                      <TableRow key={booking.id}>
                         <td className="py-4 px-4 font-mono text-sm text-foreground">{booking.reference_code || "—"}</td>
                         <td className="py-4 px-4 text-sm text-muted-foreground">{booking.courts?.name || "Unknown"}</td>
                         <td className="py-4 px-4 text-sm text-foreground">{format(new Date(booking.booking_date), "MMM d, yyyy")}</td>
                         <td className="py-4 px-4 font-semibold text-foreground">₱{booking.total_amount}</td>
-                        <td className="py-4 px-4">
+                        <TableCell>
                           <Badge className={statusColors[booking.status] || ""}>
                             {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                           </Badge>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
-              </div>
+                  </TableBody>
+              </Table>
             )}
           </CardContent>
         </Card>

@@ -27,7 +27,7 @@ const Confirmation = () => {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="pt-24 pb-16">
+        <main className="pt-32 pb-16 md:pt-36">
           <div className="container mx-auto px-4 max-w-2xl">
             <div className="text-center mb-8">
               <Skeleton className="h-20 w-20 rounded-full mx-auto mb-6" />
@@ -51,7 +51,7 @@ const Confirmation = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-24 pb-16">
+      <main className="pt-32 pb-16 md:pt-36">
         <div className="container mx-auto px-4 max-w-2xl">
           <div className="text-center mb-8 animate-slide-up">
             <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border-2 border-primary mb-6">

@@ -1,59 +1,52 @@
-import { Button } from "@/components/ui/button";
-import { ArrowRight, CheckCircle } from "lucide-react";
+import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const benefits = [
-  "Free account registration",
-  "Instant booking confirmation",
-  "24/7 customer support",
-  "No hidden fees",
-];
+import { Reveal } from "@/components/motion/Reveal";
+import nightCourtImage from "@/assets/brand/picklebox-night-court.png";
 
 export function CTASection() {
   return (
-    <section className="py-20 relative overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 gradient-primary opacity-95" />
-      <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wNSI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iNCIvPjwvZz48L2c+PC9zdmc+')] opacity-20" />
-
-      <div className="container mx-auto px-4 relative z-10">
-        <div className="max-w-3xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6">
-            Ready to Book Your Next Game?
-          </h2>
-          <p className="text-lg text-primary-foreground/80 mb-8">
-            Join thousands of players who trust PickleCourt Pro for their court reservations. Get started in under a minute.
-          </p>
-
-          {/* Benefits */}
-          <div className="flex flex-wrap justify-center gap-4 mb-10">
-            {benefits.map((benefit, index) => (
-              <div key={index} className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary-foreground/10 border border-primary-foreground/20">
-                <CheckCircle className="h-4 w-4 text-primary-foreground" />
-                <span className="text-sm font-medium text-primary-foreground">{benefit}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
-            <Link to="/courts">
-              <Button 
-                size="xl" 
-                className="bg-primary-foreground text-primary hover:bg-primary-foreground/90 shadow-xl"
-              >
-                Start Booking Now
-                <ArrowRight className="h-5 w-5 ml-2" />
-              </Button>
-            </Link>
-            <Button 
-              variant="outline" 
-              size="xl"
-              className="border-2 border-primary-foreground/30 text-primary-foreground bg-transparent hover:bg-primary-foreground/10"
+    <section className="bg-background px-3 pb-12 pt-6 md:px-8 md:pb-16 md:pt-8">
+      <div className="group relative mx-auto overflow-hidden rounded-[2rem] ring-1 ring-border md:max-w-[1480px] md:rounded-[2.5rem]">
+        <img
+          src={nightCourtImage}
+          alt="An available pickleball court under lights at night"
+          width={1672}
+          height={941}
+          loading="lazy"
+          className="absolute inset-0 h-full w-full object-cover transition-transform duration-[1800ms] ease-[cubic-bezier(.32,.72,0,1)] group-hover:scale-[1.025]"
+        />
+        <div className="media-scrim-cta absolute inset-0" />
+        <div className="relative z-10 px-7 py-28 text-brand-chalk md:px-14 md:py-36 lg:px-24">
+          <Reveal variant="left">
+            <p className="text-sm font-extrabold text-brand-lime">Your next game starts here</p>
+            <h2 className="font-display mt-5 max-w-3xl text-[2.75rem] leading-[.92] sm:text-5xl md:text-7xl">
+              Get your people
+              <br />
+              on the court.
+            </h2>
+          </Reveal>
+          <Reveal delay={140}>
+            <p className="mt-6 max-w-md text-base font-semibold leading-7 text-brand-chalk">
+              A couple of taps now. A good evening later.
+            </p>
+          </Reveal>
+          <Reveal delay={260}>
+            <Link
+              to="/courts"
+              className="group/cta inline-flex h-14 items-center gap-4 rounded-full bg-brand-lime py-1 pl-6 pr-1 text-sm font-extrabold text-brand-ink transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] hover:-translate-y-0.5 active:scale-[.98]"
             >
-              Learn More
-            </Button>
-          </div>
+              See available courts
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-ink text-brand-lime transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] group-hover/cta:translate-x-1 group-hover/cta:-translate-y-0.5">
+                <ArrowUpRight className="h-5 w-5 stroke-[1.5]" aria-hidden="true" />
+              </span>
+            </Link>
+          </Reveal>
+          <Reveal delay={360}>
+            <p className="mt-10 flex w-fit items-center gap-2 rounded-full border border-brand-chalk/25 bg-brand-night/85 px-3 py-2 text-xs font-extrabold text-brand-chalk shadow-lg">
+              <ShieldCheck className="h-4 w-4 stroke-[1.5] text-brand-lime" aria-hidden="true" />
+              Clear confirmation and secure GCash payment.
+            </p>
+          </Reveal>
         </div>
       </div>
     </section>
