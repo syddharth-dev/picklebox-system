@@ -1,6 +1,36 @@
-import { ArrowUpRight, Instagram, MapPin } from "lucide-react";
+import { ArrowUpRight, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
+import { AppLogo } from "@/components/AppLogo";
 
 export function Footer() {
-  return <footer className="bg-brand-ink text-brand-chalk"><div className="mx-auto max-w-[1400px] px-6 py-8 md:px-10 md:py-10 lg:px-16"><div className="grid gap-7 md:grid-cols-12 md:items-start md:gap-10"><div className="md:col-span-5"><p className="eyebrow text-brand-lime">The Pickle Box</p><h2 className="font-display mt-3 max-w-sm text-3xl leading-[.98] md:text-4xl">A local court club for the love of the rally.</h2></div><div className="grid grid-cols-2 gap-6 md:col-span-7 md:gap-8"><div><p className="eyebrow text-brand-chalk/65">Explore</p><div className="mt-3 flex flex-col gap-2 text-sm font-bold"><Link to="/courts">Courts</Link><Link to="/open-play">Open Play</Link><Link to="/bookings">My bookings</Link><Link to="/faq">FAQ</Link></div></div><div><p className="eyebrow text-brand-chalk/65">Find us</p><div className="mt-3 space-y-2 text-sm leading-5 text-brand-chalk/80"><p className="flex gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0 text-brand-lime" />Endrina St., San Carlos City<br />Negros Occidental</p><a href="#" className="inline-flex items-center gap-2 font-bold text-brand-lime">Instagram <Instagram className="h-4 w-4" /><ArrowUpRight className="h-3 w-3" /></a></div></div></div></div><div className="mt-7 flex flex-col gap-2 border-t border-brand-chalk/20 pt-4 text-xs text-brand-chalk/75 sm:flex-row sm:justify-between"><p>© 2026 The Pickle Box. Made for the next game.</p><div className="flex gap-5"><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div></div></div></footer>;
+  return (
+    <footer className="bg-brand-ink text-white">
+      <div className="site-container pb-6 pt-12 md:pt-16">
+        <div className="grid gap-10 pb-12 sm:grid-cols-2 lg:grid-cols-[1.4fr_.7fr_1fr]">
+          <div>
+            <Link to="/" aria-label="The Pickle Box home" className="inline-block rounded-lg bg-white p-2"><AppLogo className="h-16 w-24" /></Link>
+            <p className="mt-5 max-w-xs text-sm leading-6 text-white/70">A place to play. A reason to connect.<br />A community to belong to.</p>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">Make a plan</h2>
+            <div className="mt-4 flex flex-col items-start gap-3 text-sm text-white/70">
+              <Link to="/courts" className="hover:text-brand-lime">Book a court</Link>
+              <Link to="/open-play" className="hover:text-brand-lime">Open Play</Link>
+              <Link to="/bookings" className="hover:text-brand-lime">My bookings</Link>
+              <Link to="/help" className="hover:text-brand-lime">Help & questions</Link>
+            </div>
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold">Find your way here</h2>
+            <p className="mt-4 flex gap-2 text-sm leading-6 text-white/70"><MapPin className="mt-1 h-4 w-4 shrink-0" aria-hidden="true" /><span>Endrina St., San Carlos City<br />Negros Occidental, Philippines</span></p>
+            <a href="https://www.google.com/maps/search/?api=1&query=The+Pickle+Box+Endrina+Street+San+Carlos+City+Negros+Occidental"
+              target="_blank" rel="noreferrer" className="text-link mt-3 text-brand-lime">Get directions <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></a>
+          </div>
+        </div>
+        <div className="flex flex-wrap justify-between gap-3 border-t border-white/15 pr-20 pt-5 text-xs text-white/60 md:pr-48">
+          <p>© {new Date().getFullYear()} The Pickle Box.</p><p>Play. Connect. Belong.</p>
+        </div>
+      </div>
+    </footer>
+  );
 }

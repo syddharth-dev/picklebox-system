@@ -1,109 +1,92 @@
+import { ArrowRight, CalendarSearch, QrCode, Smartphone } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { CalendarCheck2, Search, SmilePlus } from "lucide-react";
 import { useInView } from "@/hooks/useInView";
-import arrivalImage from "@/assets/brand/picklebox-arrival-desk.png";
 
-const routePath = "M0 45C170 12 325 70 500 37s320 24 500-21";
 const steps = [
-  { icon: Search, title: "Find a court", text: "Choose a date, a time, and the court that fits your crew." },
-  { icon: CalendarCheck2, title: "Reserve your slot", text: "Confirm in a few taps with GCash, then keep the details in one place." },
-  { icon: SmilePlus, title: "Show up to play", text: "Your court is ready. Bring your paddle—or simply bring the group." },
+  { title: "Find your time", icon: CalendarSearch, text: "Choose a date, then select an available court and the hours you want." },
+  { title: "Send your payment", icon: Smartphone, text: "Pay with GCash and submit your reference. Staff will verify your payment." },
+  { title: "See you on court", icon: QrCode, text: "After approval, open your check-in QR from My bookings and show it when you arrive." },
 ];
 
 export function BookingFlowSection() {
-  const { ref: routeRef, isInView: routeActive } = useInView<HTMLDivElement>(0.45);
-  const [reduceMotion, setReduceMotion] = useState(false);
+  const { ref, isInView, canAnimate } = useInView<HTMLDivElement>(0.25);
+  const [path, setPath] = useState("");
 
   useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduceMotion(query.matches);
-  }, []);
+    const track = ref.current;
+    if (!track) return;
+    const measure = () => {
+      const bounds = track.getBoundingClientRect();
+      const points = Array.from(track.querySelectorAll("[data-step-marker]")).map((marker) => {
+        const rect = marker.getBoundingClientRect();
+        return { x: rect.left - bounds.left + rect.width / 2, y: rect.top - bounds.top + rect.height / 2 };
+      });
+      if (points.length !== 3 || bounds.width === 0) return;
+      const [first, second, third] = points;
+      const start = `M${first.x} ${first.y}`;
+      if (Math.abs(third.x - first.x) < 1) {
+        setPath(`${start} L${second.x} ${second.y} L${third.x} ${third.y}`);
+      } else {
+        const curveTo = (from: typeof first, to: typeof first) => {
+          const dx = (to.x - from.x) / 3;
+          return `C${from.x + dx} ${from.y - 24} ${to.x - dx} ${to.y + 24} ${to.x} ${to.y}`;
+        };
+        setPath(`${start} ${curveTo(first, second)} ${curveTo(second, third)}`);
+      }
+    };
+    measure();
+    if (typeof ResizeObserver !== "function") {
+      window.addEventListener("resize", measure);
+      return () => window.removeEventListener("resize", measure);
+    }
+    const observer = new ResizeObserver(measure);
+    observer.observe(track);
+    return () => observer.disconnect();
+  }, [ref]);
 
   return (
-    <section className="overflow-hidden bg-muted/35 px-6 py-28 text-foreground md:px-10 md:py-36 lg:px-16">
-      <div className="mx-auto max-w-[1320px]">
-        <div className="mx-auto max-w-3xl text-center">
-          <p className="text-sm font-bold tracking-wide text-muted-foreground">How booking works</p>
-          <h2 className="font-display mt-5 text-[2rem] leading-[.98] sm:text-5xl md:text-7xl">
-            From “who’s free?”
-            <br />
-            to <span className="text-primary">“see you there.”</span>
-          </h2>
-          <p className="mx-auto mt-6 max-w-xl text-base leading-7 text-muted-foreground">
-            The practical stuff should never get in the way of a good rally.
-          </p>
-        </div>
-
-        <div ref={routeRef} className="relative mt-16">
-          <svg
-            className="pointer-events-none absolute left-[16.5%] top-[40px] hidden h-10 w-[67%] overflow-visible text-foreground/25 md:block"
-            viewBox="0 0 1000 80"
-            preserveAspectRatio="none"
-            aria-hidden="true"
-          >
-            <path d={routePath} fill="none" stroke="currentColor" strokeDasharray="8 11" strokeWidth="2" strokeLinecap="round" />
-            {routeActive ? (
-              <>
-                <path
-                  className="booking-route-draw stroke-primary"
-                  d={routePath}
-                  fill="none"
-                  pathLength="1"
-                  strokeDasharray="1"
-                  strokeDashoffset="1"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                />
-                {reduceMotion ? (
-                  <circle cx="1000" cy="16" r="13" className="fill-primary stroke-background" strokeWidth="5" />
-                ) : (
-                  <circle r="13" className="fill-primary stroke-background" strokeWidth="5">
-                    <animateMotion dur="2.8s" path={routePath} calcMode="spline" keyTimes="0;1" keySplines=".32 .72 0 1" fill="freeze" />
-                  </circle>
-                )}
-              </>
-            ) : null}
-          </svg>
-
-          <div className="relative grid gap-12 md:grid-cols-3 md:gap-8">
-            {steps.map(({ icon: Icon, title, text }, index) => (
-              <article key={title} className="group text-center">
-                <div className="relative mx-auto grid h-20 w-20 place-items-center rounded-full bg-primary text-primary-foreground ring-8 ring-background transition-transform duration-700 ease-[cubic-bezier(.32,.72,0,1)] group-hover:-translate-y-2 group-hover:scale-105">
-                  <Icon className="h-8 w-8 stroke-[1.4] transition-transform duration-700 ease-[cubic-bezier(.32,.72,0,1)] group-hover:rotate-[-8deg]" aria-hidden="true" />
-                  <span className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full border border-border bg-card text-[10px] font-extrabold text-card-foreground">
-                    0{index + 1}
-                  </span>
-                </div>
-                <h3 className="font-display mt-7 text-2xl transition-colors duration-500 ease-[cubic-bezier(.32,.72,0,1)] group-hover:text-primary">
-                  {title}
-                </h3>
-                <p className="mx-auto mt-3 max-w-xs text-sm leading-6 text-muted-foreground">{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div className="group mt-20 grid overflow-hidden rounded-[2rem] bg-foreground/5 p-1 ring-1 ring-border transition-transform duration-700 ease-[cubic-bezier(.32,.72,0,1)] hover:-translate-y-1 md:grid-cols-[1.1fr_.9fr]">
-          <div className="overflow-hidden rounded-[1.7rem]">
-            <img
-              src={arrivalImage}
-              alt="The Pickle Box arrival counter beside the courts"
-              width={1672}
-              height={941}
-              loading="lazy"
-              className="h-full min-h-[300px] w-full object-cover transition-transform duration-[1200ms] ease-[cubic-bezier(.32,.72,0,1)] group-hover:scale-[1.035]"
-            />
-          </div>
-          <div className="flex flex-col justify-center rounded-[1.7rem] bg-card p-8 md:p-12">
-            <p className="text-sm font-bold text-primary">Keep it simple</p>
-            <p className="font-display mt-4 text-3xl leading-[1.05] md:text-4xl">
-              The confirmation you need—then it’s time to play.
-            </p>
-            <p className="mt-5 max-w-sm text-sm leading-6 text-muted-foreground">
-              Everything is clear before you arrive, from the court to the time to your payment confirmation.
-            </p>
-          </div>
-        </div>
+    <section aria-labelledby="booking-flow-title" className="site-container site-section">
+      <div className="mx-auto max-w-3xl text-center">
+        <p className="mb-4 text-sm font-bold text-muted-foreground">How it works</p>
+        <h2 id="booking-flow-title" className="section-title">Book your court<br />in 3 simple steps.</h2>
+        <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">From finding a time to your first serve. Here is how to get on court.</p>
+      </div>
+      <div ref={ref} className="booking-track relative mt-12 md:mt-16" data-playing={isInView && canAnimate}>
+        <svg className="pointer-events-none absolute inset-0 h-full w-full text-border" aria-hidden="true" focusable="false">
+          <path d={path} fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 7" />
+        </svg>
+        <ol className="booking-steps relative grid gap-9 md:grid-cols-3 md:gap-8">
+          {steps.map(({ title, icon: Icon, text }, index) => (
+            <li key={title} className="relative grid grid-cols-[80px_1fr] items-start gap-x-5 md:flex md:flex-col md:items-center md:text-center">
+              <div data-step-marker className="relative z-10 flex h-20 w-20 items-center justify-center rounded-full bg-brand-lime text-brand-ink ring-8 ring-background md:h-24 md:w-24">
+                <Icon className="h-8 w-8 md:h-9 md:w-9" strokeWidth={1.75} aria-hidden="true" />
+                <span className="absolute -right-1 -top-1 flex h-8 w-8 items-center justify-center rounded-full border border-border bg-card text-xs font-extrabold text-foreground">0{index + 1}</span>
+              </div>
+              <div className="pb-2 pt-1 md:mt-7 md:p-0">
+                <h3 className="mb-3 text-lg font-extrabold lg:text-xl">{title}</h3>
+                <p className="mx-auto max-w-sm text-sm leading-7 text-muted-foreground lg:text-base">{text}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+        {path && (
+          <span key={path} className="booking-ball" style={{ offsetPath: `path("${path}")` }} aria-hidden="true">
+            <svg viewBox="0 0 24 24" className="h-full w-full" focusable="false">
+              <circle cx="12" cy="12" r="10.5" fill="#B7E34B" stroke="#142B3B" strokeWidth="1.5" />
+              <g fill="#142B3B">
+                <ellipse cx="7" cy="7.5" rx="1.3" ry="1.7" transform="rotate(35 7 7.5)" />
+                <ellipse cx="17" cy="7.5" rx="1.3" ry="1.7" transform="rotate(-35 17 7.5)" />
+                <circle cx="12" cy="12" r="1.6" />
+                <ellipse cx="7.5" cy="17" rx="1.7" ry="1.3" transform="rotate(35 7.5 17)" />
+                <ellipse cx="16.5" cy="17" rx="1.7" ry="1.3" transform="rotate(-35 16.5 17)" />
+              </g>
+            </svg>
+          </span>
+        )}
+      </div>
+      <div className="mt-10 text-center md:mt-12">
+        <Link to="/courts" className="action-link inline-flex min-h-12 items-center justify-center gap-4 rounded-xl bg-primary px-7 text-sm font-bold text-primary-foreground hover:bg-primary/90">Start a booking <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
       </div>
     </section>
   );

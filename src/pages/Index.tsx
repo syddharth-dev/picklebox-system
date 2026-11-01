@@ -6,17 +6,19 @@ import { CourtsPreview } from "@/components/home/CourtsPreview";
 import { CTASection } from "@/components/home/CTASection";
 import { BookingFlowSection } from "@/components/home/BookingFlowSection";
 import { OpenPlayHighlight } from "@/components/home/OpenPlayHighlight";
+import { PlayOptionsSection } from "@/components/home/PlayOptionsSection";
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main>
+      <main id="main-content">
         <HeroSection />
-        <FeaturesSection />
+        <PlayOptionsSection />
         <CourtsPreview />
-        <BookingFlowSection />
         <OpenPlayHighlight />
+        <BookingFlowSection />
+        <FeaturesSection />
         <CTASection />
       </main>
       <Footer />

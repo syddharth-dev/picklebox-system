@@ -13,7 +13,7 @@ interface RevealProps {
 }
 
 export function Reveal({ children, className, delay = 0, variant = "up", threshold = 0.2 }: RevealProps) {
-  const { ref, isInView } = useInView<HTMLDivElement>(threshold);
+  const { ref, isInView, canAnimate } = useInView<HTMLDivElement>(threshold);
 
-  return <div ref={ref} className={cn("motion-reveal", `motion-reveal--${variant}`, isInView && "motion-reveal--visible", className)} style={{ "--reveal-delay": `${delay}ms` } as CSSProperties}>{children}</div>;
+  return <div ref={ref} className={cn("motion-reveal", `motion-reveal--${variant}`, canAnimate && !isInView && "motion-reveal--pending", isInView && "motion-reveal--visible", className)} style={{ "--reveal-delay": `${Math.min(Math.max(delay, 0), 300)}ms` } as CSSProperties}>{children}</div>;
 }

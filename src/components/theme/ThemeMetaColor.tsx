@@ -2,8 +2,8 @@ import { useEffect } from "react";
 import { useTheme } from "next-themes";
 
 const THEME_COLORS = {
-  dark: "#0d110e",
-  light: "#f5f1e9",
+  dark: "#142B3B",
+  light: "#F8FAFC",
 } as const;
 
 export function ThemeMetaColor() {

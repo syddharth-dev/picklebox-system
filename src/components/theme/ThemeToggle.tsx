@@ -25,7 +25,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       disabled={!mounted}
       onClick={() => setTheme(isDark ? "light" : "dark")}
       className={cn(
-        "h-10 w-10 rounded-full text-foreground transition-[background-color,color,transform] duration-500 ease-[cubic-bezier(.32,.72,0,1)] hover:bg-accent hover:text-accent-foreground active:scale-[.96]",
+        "h-11 w-11 rounded-lg text-foreground transition-colors duration-200 hover:bg-accent hover:text-accent-foreground",
         className,
       )}
     >
