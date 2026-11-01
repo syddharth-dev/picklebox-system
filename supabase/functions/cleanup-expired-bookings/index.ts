@@ -1,14 +1,10 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
 
-const corsHeaders = {
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
-};
+import { responseHeaders as corsHeaders } from "../_shared/http.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
+  if (req.headers.has("Origin")) return new Response(null, { status: 403, headers: corsHeaders });
+  if (req.method !== "POST") return new Response(null, { status: 405, headers: { ...corsHeaders, Allow: "POST" } });
 
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
@@ -32,16 +28,17 @@ Deno.serve(async (req) => {
       // Otherwise check if it's an admin user
       const userClient = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
       });
-      const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-      if (claimsError || !claimsData?.claims) {
+      const { data: userData, error: userError } = await userClient.auth.getUser(token);
+      if (userError || !userData?.user?.id) {
         return new Response(
           JSON.stringify({ error: "Unauthorized" }),
           { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      const userId = claimsData.claims.sub as string;
+      const userId = userData.user.id;
       const adminClient = createClient(supabaseUrl, supabaseServiceKey);
       const { data: adminRole, error: adminRoleError } = await adminClient
         .from("user_roles")
@@ -68,7 +65,7 @@ Deno.serve(async (req) => {
       .select("id, reference_code");
 
     if (error) {
-      console.error("Error cancelling expired bookings:", error);
+      console.error("Expired-booking update failed");
       return new Response(
         JSON.stringify({ error: "Failed to process expired bookings" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -79,11 +76,11 @@ Deno.serve(async (req) => {
     console.log(`Cancelled ${cancelledCount} expired bookings`);
 
     return new Response(
-      JSON.stringify({ cancelled: cancelledCount, bookings: data }),
+      JSON.stringify({ cancelled: cancelledCount }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Unexpected error:", err);
+    console.error("Cleanup request failed");
     return new Response(
       JSON.stringify({ error: "Internal server error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

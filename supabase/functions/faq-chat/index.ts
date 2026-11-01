@@ -1,29 +1,6 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.93.3";
 
-const baseCorsHeaders = {
-  "Access-Control-Allow-Headers":
-    "authorization, x-client-info, apikey, content-type",
-};
-
-function corsHeaders(req: Request) {
-  const origin = req.headers.get("Origin");
-  const allowedOrigins = (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-  if (!origin || !allowedOrigins.includes(origin)) return baseCorsHeaders;
-  return { ...baseCorsHeaders, "Access-Control-Allow-Origin": origin, Vary: "Origin" };
-}
-
-function isAllowedBrowserOrigin(req: Request) {
-  const origin = req.headers.get("Origin");
-  if (!origin) return true;
-  return (Deno.env.get("ALLOWED_ORIGINS") ?? "")
-    .split(",")
-    .map((value) => value.trim())
-    .includes(origin);
-}
+import { corsHeaders, isAllowedBrowserOrigin, readBoundedJson, HttpError } from "../_shared/http.ts";
 
 const SYSTEM_PROMPT = `You are "PickleBot", the friendly FAQ assistant for **The Pickle Box** — a pickleball court booking website located at Endrina St., San Carlos City, Negros Occidental, Philippines.
 
@@ -38,9 +15,12 @@ You ONLY answer questions related to The Pickle Box website and its services, in
 
 Key facts you can share:
 - Location: Endrina St., San Carlos City, Negros Occidental
-- Contact: hello@picklecourt.ph  |  +63 912 345 6789
-- Payment: GCash — upload proof after booking; admin manually verifies
-- Bookings must be paid within 30 minutes or the reservation is released
+- Payment: choose court hours, send payment with the venue's GCash QR, and enter the transaction reference. Staff manually verify payment.
+- Court bookings remain pending with reserved time slots during staff verification. There is no automatic 30-minute expiry in the current booking flow.
+- A check-in QR pass becomes available after payment approval. It is found in My bookings, or in the registered Open Play session.
+- Pending court bookings can be cancelled from My bookings. Open Play cancellation deadlines are shown on each session.
+- The Help page at /help explains bookings and payments and links to directions. No verified phone number or support email is configured; do not invent either.
+- Court rates, available hours, Open Play fees, capacity and skill levels must be checked on the Courts and Open Play pages. Do not invent prices, opening hours, or availability, and do not claim access to a player's private bookings or account.
 - Users can view bookings under "My Bookings" once signed in
 
 STRICT RULE — Off-topic guard:
@@ -79,10 +59,11 @@ Deno.serve(async (req) => {
 
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false, autoRefreshToken: false },
     });
     const token = authHeader.slice("Bearer ".length);
-    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims?.sub) {
+    const { data: userData, error: userError } = await userClient.auth.getUser(token);
+    if (userError || !userData?.user?.id) {
       return new Response(JSON.stringify({ error: "Authentication required" }), {
         status: 401,
         headers: { ...headers, "Content-Type": "application/json" },
@@ -105,25 +86,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { messages } = await req.json();
-    if (!Array.isArray(messages)) {
+    const payload = await readBoundedJson(req, 65536);
+    const messages = typeof payload === "object" && payload !== null && "messages" in payload ? payload.messages : null;
+    if (!Array.isArray(messages) || messages.length < 1 || messages.length > 20
+      || !messages.every((message: unknown) => typeof message === "object" && message !== null
+        && "role" in message && (message.role === "user" || message.role === "assistant")
+        && "content" in message && typeof message.content === "string"
+        && message.content.trim().length > 0 && message.content.length <= 2000)) {
       return new Response(JSON.stringify({ error: "Invalid messages" }), {
         status: 400,
         headers: { ...headers, "Content-Type": "application/json" },
       });
     }
 
+    if (messages.reduce((total, m) => total + m.content.length, 0) > 12000) {
+      throw new HttpError(400, "Conversation too long");
+    }
+
     const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
+      signal: AbortSignal.timeout(25000),
       headers: {
         "Content-Type": "application/json",
         "Lovable-API-Key": LOVABLE_API_KEY,
       },
       body: JSON.stringify({
         model: "google/gemini-3.5-flash",
+        max_tokens: 512,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          ...messages.slice(-20).map((m: any) => ({
+          ...messages.map((m: { role: "user" | "assistant"; content: string }) => ({
             role: m.role === "assistant" ? "assistant" : "user",
             content: String(m.content ?? "").slice(0, 2000),
           })),
@@ -132,8 +124,8 @@ Deno.serve(async (req) => {
     });
 
     if (!resp.ok) {
-      const text = await resp.text();
-      console.error("Gateway error:", resp.status, text);
+      await resp.body?.cancel();
+      console.error("AI gateway failure", resp.status);
       if (resp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again shortly." }), {
           status: 429,
@@ -152,17 +144,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    const data = await resp.json();
-    const reply = data?.choices?.[0]?.message?.content ?? "Sorry, I couldn't generate a reply.";
+    const data = await readBoundedJson(resp, 65536) as { choices?: { message?: { content?: unknown } }[] };
+    const content = data?.choices?.[0]?.message?.content;
+    const reply = typeof content === "string" ? content.slice(0, 8000) : "Sorry, I couldn't generate a reply.";
 
     return new Response(JSON.stringify({ reply }), {
       status: 200,
       headers: { ...headers, "Content-Type": "application/json" },
     });
   } catch (err) {
-    console.error("faq-chat error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
-      status: 500,
+    console.error("faq-chat request failed");
+    return new Response(JSON.stringify({ error: err instanceof HttpError ? err.message : "Internal server error" }), {
+      status: err instanceof HttpError ? err.status : 500,
       headers: { ...headers, "Content-Type": "application/json" },
     });
   }

@@ -31,9 +31,13 @@ export function fmtTimestamp(value?: string | null) {
   }
 }
 
-function escapeCsv(value: string) {
-  const v = value ?? "";
-  return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+export function escapeCsv(value: string) {
+  // Quoting alone does not stop spreadsheet formulas. Protect untrusted names,
+  // phone numbers and other text, including formulas after leading whitespace.
+  const raw = value ?? "";
+  // eslint-disable-next-line no-control-regex -- Leading control bytes can conceal spreadsheet formula prefixes.
+  const v = /^[\s\u0000-\u001f]*[=+@-]/u.test(raw) || /^[\t\r\n]/u.test(raw) ? `'${raw}` : raw;
+  return /[",\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
 }
 
 function download(blob: Blob, filename: string) {
