@@ -6,6 +6,7 @@ export function useUserBookings() {
   const { user } = useAuth();
   return useQuery({
     queryKey: ["bookings", user?.id],
+    refetchInterval: 15_000,
     queryFn: async () => {
       if (!user) return [];
       const { data, error } = await supabase
@@ -23,7 +24,7 @@ export function useUserBookings() {
 export function useBooking(id: string | undefined) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["booking", id],
+    queryKey: ["booking", id, user?.id],
     queryFn: async () => {
       if (!id || !user) return null;
       const { data, error } = await supabase
@@ -92,7 +93,8 @@ export function useBookedSlotsAllCourts(date: string | undefined) {
 export function useBookingsByIds(ids: string[] | undefined) {
   const { user } = useAuth();
   return useQuery({
-    queryKey: ["bookings-by-ids", ids?.join(",")],
+    queryKey: ["bookings-by-ids", ids?.join(","), user?.id],
+    refetchInterval: 15_000,
     queryFn: async () => {
       if (!ids?.length || !user) return [];
       const { data, error } = await supabase

@@ -74,7 +74,7 @@ export function QRCodeDialog({
                   Already checked in
                 </Badge>
               ) : (
-                <Badge variant="outline">Valid — not yet checked in</Badge>
+                <Badge variant="outline">Payment approved — not yet checked in</Badge>
               )}
               <p className="text-center text-xs text-muted-foreground break-all">
                 Code: <span className="font-mono">{token}</span> — staff can type this if

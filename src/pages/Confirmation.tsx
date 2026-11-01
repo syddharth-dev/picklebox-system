@@ -15,19 +15,32 @@ const Confirmation = () => {
   const { user, loading: authLoading } = useAuth();
   const state = location.state as { bookingIds?: string[]; bookingId?: string } | null;
   // Support legacy single-booking state as well
-  const ids = state?.bookingIds ?? (state?.bookingId ? [state.bookingId] : undefined);
+  const ids = Array.isArray(state?.bookingIds) && state.bookingIds.length <= 12 && state.bookingIds.every((id) => typeof id === "string" && id.length > 0)
+    ? state.bookingIds : typeof state?.bookingId === "string" ? [state.bookingId] : undefined;
 
-  const { data: bookings, isLoading } = useBookingsByIds(ids);
+  const { data: bookings, isLoading, error, refetch } = useBookingsByIds(ids);
 
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
   if (!ids?.length) return <Navigate to="/courts" replace />;
 
+  if (error) return (
+    <div className="min-h-screen bg-background"><Navbar />
+      <main id="main-content" className="site-container pb-20 pt-32 md:pt-40">
+        <div role="alert" className="rounded-xl border border-destructive/30 p-6">
+          <h1 className="text-xl font-bold">Could not load your bookings.</h1>
+          <p className="mt-2">Your submission may already be saved. Check My bookings before submitting another reservation.</p>
+          <div className="mt-4 flex flex-wrap gap-3"><Button onClick={() => void refetch()}>Try again</Button><Button asChild variant="outline"><Link to="/bookings">My bookings</Link></Button></div>
+        </div>
+      </main><Footer />
+    </div>
+  );
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="pt-32 pb-16 md:pt-36">
+        <main id="main-content" className="pt-32 pb-20 md:pt-40">
           <div className="container mx-auto px-4 max-w-2xl">
             <div className="text-center mb-8">
               <Skeleton className="h-20 w-20 rounded-full mx-auto mb-6" />
@@ -43,29 +56,30 @@ const Confirmation = () => {
 
   if (!bookings?.length) return <Navigate to="/courts" replace />;
 
-  const first = bookings[0] as any;
-  const totalAmount = bookings.reduce((s, b: any) => s + Number(b.total_amount || 0), 0);
+  const first = bookings[0];
+  const totalAmount = bookings.reduce((s, b) => s + Number(b.total_amount || 0), 0);
+  const hasPending = bookings.some((booking) => booking.status === "pending");
   const bookingDate = first.booking_date;
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-32 pb-16 md:pt-36">
+      <main id="main-content" className="pt-32 pb-20 md:pt-40">
         <div className="container mx-auto px-4 max-w-2xl">
           <div className="text-center mb-8 animate-slide-up">
             <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/10 border-2 border-primary mb-6">
               <ClockIcon className="h-10 w-10 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold text-foreground mb-2">
+            <h1 className="page-title mb-4">
               {bookings.length === 1 ? "Booking Submitted!" : `${bookings.length} Bookings Submitted!`}
             </h1>
             <p className="text-muted-foreground">
-              Your {bookings.length === 1 ? "booking is" : "bookings are"} pending admin verification of your GCash payment.
+              {hasPending ? "Your submitted payment is awaiting staff verification." : "Your latest reservation and payment status are shown below."}
             </p>
           </div>
 
-          <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20 mb-6">
+          {hasPending && <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20 mb-6">
             <AlertCircle className="h-5 w-5 text-primary mt-0.5 shrink-0" />
             <div className="text-sm text-foreground">
               <p className="font-semibold mb-1">What happens next?</p>
@@ -77,7 +91,7 @@ const Confirmation = () => {
                 <li>Once paid, a <strong className="text-foreground">check-in QR code</strong> appears on My Bookings — show it at the court</li>
               </ul>
             </div>
-          </div>
+          </div>}
 
           <Card className="mb-6">
             <CardContent className="p-6 space-y-4">
@@ -94,11 +108,11 @@ const Confirmation = () => {
               </div>
 
               <div className="space-y-3">
-                {bookings.map((b: any) => (
+                {bookings.map((b) => (
                   <div key={b.id} className="p-4 rounded-xl border border-border">
                     <div className="flex items-center justify-between mb-2">
                       <p className="font-semibold text-foreground">{b.courts?.name || "Court"}</p>
-                      <Badge variant="outline" className="text-xs">Pending</Badge>
+                      <Badge variant="outline" className="text-xs">{b.status.charAt(0).toUpperCase() + b.status.slice(1)}</Badge>
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                       <Clock className="h-4 w-4" />
@@ -120,25 +134,18 @@ const Confirmation = () => {
           </Card>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link to="/bookings" className="flex-1">
-              <Button variant="hero" className="w-full">
-                View My Bookings
-              </Button>
-            </Link>
-            <Link to="/" className="flex-1">
-              <Button variant="heroOutline" className="w-full">
+            <Button asChild variant="hero" className="flex-1">
+              <Link to="/bookings">View My Bookings</Link>
+            </Button>
+              <Button asChild variant="heroOutline" className="flex-1">
+              <Link to="/">
                 <Home className="h-4 w-4 mr-2" />
                 Back to Home
+              </Link>
               </Button>
-            </Link>
           </div>
 
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            Need help? Contact our support at{" "}
-            <a href="mailto:support@picklecourt.ph" className="text-primary hover:underline">
-              support@picklecourt.ph
-            </a>
-          </p>
+          <p className="mt-8 text-center text-sm text-muted-foreground">Need a hand? <Link to="/help" className="text-primary underline underline-offset-4">Find booking and payment help.</Link></p>
         </div>
       </main>
 

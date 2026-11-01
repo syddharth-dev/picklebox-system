@@ -118,7 +118,7 @@ const AdminDashboard = () => {
       <div className="p-4 md:p-6 lg:p-8">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="eyebrow text-secondary">Operations overview</p>
+            <p className="eyebrow text-muted-foreground">Operations overview</p>
             <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-foreground md:text-3xl">Today at The Pickle Box</h1>
             <p className="text-muted-foreground">
               {format(new Date(), "EEEE, MMMM d, yyyy")} — everything happening today.

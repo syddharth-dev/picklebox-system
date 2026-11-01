@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Calendar, Clock, MoreVertical, Eye, XCircle, QrCode, CheckCircle2 } from "lucide-react";
+import { Calendar, Clock, MoreVertical, XCircle, QrCode, CheckCircle2 } from "lucide-react";
 import { useState } from "react";
 import { QRCodeDialog } from "@/components/checkin/QRCodeDialog";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -16,6 +16,10 @@ import { format } from "date-fns";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeading } from "@/components/layout/PageHeading";
+import communityImage from "@/assets/venue/rally.jpg";
+import { openPlayStart } from "@/lib/openPlay";
+import { useNow } from "@/hooks/useNow";
 
 type BookingStatus = "pending" | "paid" | "completed" | "cancelled";
 
@@ -26,9 +30,111 @@ const statusColors: Record<BookingStatus, string> = {
   cancelled: "bg-destructive/10 text-destructive",
 };
 
+type UserBooking = NonNullable<ReturnType<typeof useUserBookings>["data"]>[number];
+
+const BookingCard = ({ booking, onCancel, isCancelling }: {
+  booking: UserBooking;
+  onCancel: (id: string) => void;
+  isCancelling: boolean;
+}) => {
+  const [qrOpen, setQrOpen] = useState(false);
+  return (
+  <Card className="transition-colors duration-200 hover:border-primary/40">
+    <CardContent className="p-5">
+      <div className="flex items-start justify-between mb-4">
+        <div>
+          <h3 className="font-semibold text-foreground text-lg">{booking.courts?.name || "Court"}</h3>
+        </div>
+        <Badge className={statusColors[booking.status as BookingStatus] || ""}>
+          {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+        </Badge>
+      </div>
+
+      <div className="flex flex-wrap gap-4 mb-4">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Calendar className="h-4 w-4" />
+          <span>{format(new Date(booking.booking_date), "EEE, MMM d, yyyy")}</span>
+        </div>
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Clock className="h-4 w-4" />
+          <span>{booking.start_time} - {booking.end_time}</span>
+        </div>
+      </div>
+
+      <div className="mb-4">
+        {booking.status === "cancelled" ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
+            <XCircle className="h-3.5 w-3.5" /> Cancelled
+          </span>
+        ) : booking.checked_in_at ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Checked in · {format(new Date(booking.checked_in_at), "MMM d, p")}
+          </span>
+        ) : booking.status === "paid" ? (
+          <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Clock className="h-3.5 w-3.5" /> Not checked in yet
+          </span>
+        ) : null}
+      </div>
+
+      {booking.status === "paid" && (
+        <div className="mb-4">
+          <Button variant="outline" size="sm" className="w-full" onClick={() => setQrOpen(true)}>
+            <QrCode className="h-4 w-4 mr-2" />
+            {booking.checked_in_at ? "View QR (checked in)" : "Show check-in QR"}
+          </Button>
+          <QRCodeDialog
+            open={qrOpen}
+            onOpenChange={setQrOpen}
+            kind="booking"
+            id={booking.id}
+            title={booking.courts?.name || "Court"}
+            subtitle={`${format(new Date(booking.booking_date), "EEE, MMM d")} · ${booking.start_time} – ${booking.end_time}`}
+            referenceCode={booking.reference_code}
+            checkedInAt={booking.checked_in_at}
+          />
+        </div>
+      )}
+      {booking.status === "pending" && (
+        <p className="mb-4 text-xs text-muted-foreground">
+          Your check-in QR code unlocks once the admin approves your payment.
+        </p>
+      )}
+
+      <div className="flex items-center justify-between pt-4 border-t border-border">
+        <div>
+          <p className="text-xs text-muted-foreground">Ref: {booking.reference_code || "—"}</p>
+          <p className="text-lg font-bold text-foreground">₱{booking.total_amount}</p>
+        </div>
+        {booking.status === "pending" && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label="Booking actions" disabled={isCancelling}>
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive"
+                onClick={() => onCancel(booking.id)}
+              >
+                <XCircle className="h-4 w-4 mr-2" />
+                Cancel Booking
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+  );
+};
+
 const Bookings = () => {
+  const now = useNow();
   const { user, loading: authLoading } = useAuth();
-  const { data: bookings, isLoading } = useUserBookings();
+  const { data: bookings, isLoading, error, refetch } = useUserBookings();
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -55,124 +161,27 @@ const Bookings = () => {
   if (authLoading) return null;
   if (!user) return <Navigate to="/auth" replace />;
 
-  const upcomingBookings = bookings?.filter(
-    (b) => b.status === "paid" || b.status === "pending"
-  ) || [];
-  const pastBookings = bookings?.filter(
-    (b) => b.status === "completed" || b.status === "cancelled"
-  ) || [];
+  const isPastBooking = (b: UserBooking) => b.status === "completed" || b.status === "cancelled"
+    || openPlayStart({ session_date: b.booking_date, start_time: b.end_time }) <= now;
+  const upcomingBookings = bookings?.filter((b) => !isPastBooking(b)) || [];
+  const pastBookings = bookings?.filter(isPastBooking) || [];
 
-  const BookingCard = ({ booking }: { booking: any }) => {
-    const [qrOpen, setQrOpen] = useState(false);
-    return (
-    <Card className="hover:shadow-md transition-shadow duration-300">
-      <CardContent className="p-5">
-        <div className="flex items-start justify-between mb-4">
-          <div>
-            <h3 className="font-semibold text-foreground text-lg">{booking.courts?.name || "Court"}</h3>
-          </div>
-          <Badge className={statusColors[booking.status as BookingStatus] || ""}>
-            {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
-          </Badge>
-        </div>
-
-        <div className="flex flex-wrap gap-4 mb-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Calendar className="h-4 w-4" />
-            <span>{format(new Date(booking.booking_date), "EEE, MMM d, yyyy")}</span>
-          </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="h-4 w-4" />
-            <span>{booking.start_time} - {booking.end_time}</span>
-          </div>
-        </div>
-
-        <div className="mb-4">
-          {booking.status === "cancelled" ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-destructive">
-              <XCircle className="h-3.5 w-3.5" /> Cancelled
-            </span>
-          ) : booking.checked_in_at ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-primary">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              Checked in · {format(new Date(booking.checked_in_at), "MMM d, p")}
-            </span>
-          ) : booking.status === "paid" ? (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <Clock className="h-3.5 w-3.5" /> Not checked in yet
-            </span>
-          ) : null}
-        </div>
-
-        {booking.status === "paid" && (
-          <div className="mb-4">
-            <Button variant="outline" size="sm" className="w-full" onClick={() => setQrOpen(true)}>
-              <QrCode className="h-4 w-4 mr-2" />
-              {booking.checked_in_at ? "View QR (checked in)" : "Show check-in QR"}
-            </Button>
-            <QRCodeDialog
-              open={qrOpen}
-              onOpenChange={setQrOpen}
-              kind="booking"
-              id={booking.id}
-              title={booking.courts?.name || "Court"}
-              subtitle={`${format(new Date(booking.booking_date), "EEE, MMM d")} · ${booking.start_time} – ${booking.end_time}`}
-              referenceCode={booking.reference_code}
-              checkedInAt={booking.checked_in_at}
-            />
-          </div>
-        )}
-        {booking.status === "pending" && (
-          <p className="mb-4 text-xs text-muted-foreground">
-            Your check-in QR code unlocks once the admin approves your payment.
-          </p>
-        )}
-
-        <div className="flex items-center justify-between pt-4 border-t border-border">
-          <div>
-            <p className="text-xs text-muted-foreground">Ref: {booking.reference_code || "—"}</p>
-            <p className="text-lg font-bold text-foreground">₱{booking.total_amount}</p>
-          </div>
-          {booking.status === "pending" && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon">
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={() => cancelBooking.mutate(booking.id)}
-                >
-                  <XCircle className="h-4 w-4 mr-2" />
-                  Cancel Booking
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-    );
-  };
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       
-      <main className="pt-32 pb-16 md:pt-36">
-        <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              My Bookings
-            </h1>
-            <p className="text-muted-foreground">
-              Manage your court reservations and view booking history
-            </p>
-          </div>
+      <main id="main-content" className="pt-32 pb-20 md:pt-40">
+        <div className="site-container">
+          <PageHeading title="My bookings" description="Your next games, all in one place. Check your reservation, payment status, and check-in pass."
+            image={communityImage} imageAlt="Friends at The Pickle Box" />
 
-          {isLoading ? (
+          {error ? (
+            <div role="alert" className="rounded-xl border border-destructive/30 bg-card p-6">
+              <p>Could not load your bookings. Please try again.</p>
+              <Button variant="outline" className="mt-3" onClick={() => void refetch()}>Try again</Button>
+            </div>
+          ) : isLoading ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {[1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-48 w-full rounded-xl" />
@@ -193,7 +202,7 @@ const Bookings = () => {
                 {upcomingBookings.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {upcomingBookings.map((booking) => (
-                      <BookingCard key={booking.id} booking={booking} />
+                      <BookingCard key={booking.id} booking={booking} onCancel={(id) => cancelBooking.mutate(id)} isCancelling={cancelBooking.isPending} />
                     ))}
                   </div>
                 ) : (
@@ -213,7 +222,7 @@ const Bookings = () => {
                 {pastBookings.length > 0 ? (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {pastBookings.map((booking) => (
-                      <BookingCard key={booking.id} booking={booking} />
+                      <BookingCard key={booking.id} booking={booking} onCancel={(id) => cancelBooking.mutate(id)} isCancelling={cancelBooking.isPending} />
                     ))}
                   </div>
                 ) : (

@@ -19,9 +19,13 @@
    const [loading, setLoading] = useState(true);
  
    useEffect(() => {
+     let active = true;
+     let authChanged = false;
      // Set up auth state listener BEFORE checking session
      const { data: { subscription } } = supabase.auth.onAuthStateChange(
        (_event, session) => {
+         if (!active) return;
+         authChanged = true;
          setSession(session);
          setUser(session?.user ?? null);
          setLoading(false);
@@ -30,12 +34,15 @@
  
      // Check for existing session
      supabase.auth.getSession().then(({ data: { session } }) => {
+       if (!active || authChanged) return;
        setSession(session);
        setUser(session?.user ?? null);
        setLoading(false);
+     }).catch(() => {
+       if (active && !authChanged) setLoading(false);
      });
  
-     return () => subscription.unsubscribe();
+     return () => { active = false; subscription.unsubscribe(); };
    }, []);
  
    const signUp = async (email: string, password: string, fullName: string) => {
@@ -59,7 +66,8 @@
    };
  
    const signOut = async () => {
-     await supabase.auth.signOut();
+     const { error } = await supabase.auth.signOut();
+     if (error) throw error;
    };
  
    return (

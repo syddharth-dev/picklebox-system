@@ -14,6 +14,7 @@ import Confirmation from "./pages/Confirmation";
 import Bookings from "./pages/Bookings";
 import Profile from "./pages/Profile";
 import Auth from "./pages/Auth";
+import Help from "./pages/Help";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminCourts from "./pages/admin/AdminCourts";
 import AdminBookings from "./pages/admin/AdminBookings";
@@ -25,12 +26,14 @@ import AdminAttendance from "./pages/admin/AdminAttendance";
 import AdminSettings from "./pages/admin/AdminSettings";
 import NotFound from "./pages/NotFound";
 import { FAQChatbot } from "@/components/FAQChatbot";
+import { RouteScrollReset } from "@/components/layout/RouteScrollReset";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <BrowserRouter>
+      <RouteScrollReset />
       <AuthProvider>
         <TooltipProvider>
           <Toaster />
@@ -41,6 +44,8 @@ const App = () => (
             <Route path="/open-play" element={<ProtectedRoute><OpenPlay /></ProtectedRoute>} />
             <Route path="/admin/open-play" element={<ProtectedRoute requireAdmin><AdminOpenPlay /></ProtectedRoute>} />
             <Route path="/auth" element={<Auth />} />
+            <Route path="/help" element={<Help />} />
+            <Route path="/faq" element={<Navigate to="/help" replace />} />
 
             {/* Auth-protected routes */}
             {/* Legacy per-court booking URL — redirect to unified grid */}

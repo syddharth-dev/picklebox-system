@@ -1,80 +1,48 @@
-import { ArrowUpRight, CalendarDays } from "lucide-react";
-import { Link } from "react-router-dom";
-import { Reveal } from "@/components/motion/Reveal";
-import heroImage from "@/assets/brand/picklebox-hero-blue-hour.png";
+import { useState } from "react";
+import { ArrowRight, MapPin } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { venueDate } from "@/lib/openPlay";
+import venueImage from "@/assets/venue/courts.jpg";
+import { addDays, format, parseISO } from "date-fns";
 
 export function HeroSection() {
+  const [date, setDate] = useState(venueDate);
+  const navigate = useNavigate();
   return (
-    <section className="bg-background px-3 pb-6 pt-[94px] md:px-8 md:pb-8 md:pt-[118px]">
-      <div className="group relative mx-auto flex min-h-[720px] max-w-[1480px] items-end overflow-hidden rounded-[2rem] ring-1 ring-border md:min-h-[780px] md:rounded-[2.5rem]">
-        <img
-          src={heroImage}
-          alt="A floodlit pickleball court in San Carlos City"
-          width={1672}
-          height={941}
-          className="absolute inset-0 h-full w-full object-cover object-[62%_center] transition-transform duration-[1800ms] ease-[cubic-bezier(.32,.72,0,1)] group-hover:scale-[1.025]"
-        />
-        <div className="media-scrim-hero absolute inset-0" />
-        <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-brand-night/90 to-transparent" />
-        <svg
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-44 w-full text-brand-lime/25"
-          viewBox="0 0 1440 160"
-          preserveAspectRatio="none"
-          aria-hidden="true"
-        >
-          <path d="M-40 145C205 53 415 173 692 111s440-3 798-88" fill="none" stroke="currentColor" strokeWidth="1" />
-          <path d="M-40 158C206 82 410 192 698 131s466 2 782-82" fill="none" stroke="currentColor" strokeWidth="1" />
-        </svg>
-        <div className="relative z-10 w-full px-7 pb-10 pt-32 text-brand-chalk md:px-14 md:pb-14 lg:px-24">
-          <div className="max-w-[750px]">
-            <Reveal variant="left">
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-brand-chalk/30 bg-brand-night/85 px-4 py-2 text-xs font-extrabold shadow-sm backdrop-blur-sm">
-                <span className="h-2 w-2 rounded-full bg-brand-lime" />
-                Courts are open tonight
-              </div>
-            </Reveal>
-            <Reveal delay={100}>
-              <h1 className="font-display text-[2.75rem] leading-[.93] sm:text-7xl md:text-8xl lg:text-[6.9rem]">
-                The court is
-                <br />
-                <span className="text-brand-lime">calling your name.</span>
-              </h1>
-            </Reveal>
-            <Reveal delay={200}>
-              <p className="mt-7 max-w-[560px] rounded-r-2xl border-l-2 border-brand-lime bg-brand-night/90 px-5 py-4 text-base font-semibold leading-7 shadow-lg md:text-lg">
-                Book a court, bring your favorite people, and make one more game the plan for tonight.
-              </p>
-            </Reveal>
-            <Reveal delay={300}>
-              <div className="mt-9 flex flex-wrap gap-3">
-                <Link
-                  to="/courts"
-                  className="group inline-flex h-14 items-center gap-4 rounded-full bg-brand-lime py-1 pl-6 pr-1 text-sm font-extrabold text-brand-ink transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] hover:-translate-y-0.5 active:scale-[.98]"
-                >
-                  Book a court
-                  <span className="grid h-12 w-12 place-items-center rounded-full bg-brand-ink text-brand-lime transition-transform duration-500 ease-[cubic-bezier(.32,.72,0,1)] group-hover:translate-x-1 group-hover:-translate-y-0.5">
-                    <ArrowUpRight className="h-5 w-5 stroke-[1.5]" aria-hidden="true" />
-                  </span>
-                </Link>
-                <Link
-                  to="/open-play"
-                  className="inline-flex h-14 items-center gap-3 rounded-full border border-brand-chalk/40 bg-brand-night/45 px-6 text-sm font-bold text-brand-chalk transition-colors duration-500 ease-[cubic-bezier(.32,.72,0,1)] hover:bg-brand-chalk/10"
-                >
-                  <CalendarDays className="h-4 w-4 stroke-[1.5]" aria-hidden="true" />
-                  See Open Play
-                </Link>
-              </div>
-            </Reveal>
-          </div>
-          <Reveal delay={420}>
-            <div className="mt-16 grid max-w-[630px] grid-cols-3 gap-2 border-t border-brand-chalk/30 pt-4 text-[10px] font-bold text-brand-chalk/90 sm:text-xs">
-              <span>Book by the hour</span>
-              <span>Open Play nights</span>
-              <span>San Carlos City</span>
-            </div>
-          </Reveal>
-        </div>
+    <section className="site-container hero-sequence pb-10 pt-32 md:pt-36">
+      <div className="hero-location mb-5 flex items-center gap-2 text-xs font-semibold text-muted-foreground sm:text-sm">
+        <MapPin className="h-4 w-4" aria-hidden="true" />
+        San Carlos City, Negros Occidental
       </div>
+      <div className="mb-8 grid items-end gap-6 md:grid-cols-[1.85fr_1fr] md:gap-12">
+        <h1 className="hero-headline font-display text-[clamp(3.3rem,10vw,9.5rem)] uppercase leading-[.83]">
+          <span className="whitespace-nowrap">Play. Connect.</span><br />Belong.
+        </h1>
+        <p className="hero-intro max-w-sm text-base leading-7 text-muted-foreground md:pb-1 md:text-lg">
+          Your people. Your place to play. Book a court with friends, or find your next game at Open Play.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-[1.65fr_1fr] lg:grid-cols-[2.15fr_1fr]">
+        <div className="hero-courts photo-frame photo-interaction relative min-h-[280px] md:min-h-[420px]">
+          <img src={venueImage} alt="The Pickle Box's blue indoor courts in San Carlos City" width={1302} height={868}
+            loading="eager" className="absolute inset-0 h-full w-full object-cover object-center" />
+        </div>
+        <form className="hero-booking flex flex-col justify-center rounded-xl bg-brand-lime p-7 text-brand-ink lg:p-9"
+          onSubmit={(event) => { event.preventDefault(); navigate("/courts?date=" + date); }}>
+          <h2 className="font-display max-w-xs text-5xl leading-[.95] lg:text-[3.6rem]">Make time<br />for a game.</h2>
+          <label htmlFor="home-booking-date" className="mb-2 mt-7 text-sm font-semibold">When do you want to play?</label>
+          <input id="home-booking-date" type="date" required min={venueDate()} max={format(addDays(parseISO(venueDate()), 60), "yyyy-MM-dd")} value={date}
+            onChange={(event) => setDate(event.target.value)}
+            className="h-12 w-full rounded-lg border-0 bg-white px-4 text-base text-brand-ink [color-scheme:light] focus-visible:outline-brand-ink" />
+          <button type="submit" className="action-link mt-3 flex h-12 items-center justify-between rounded-lg bg-brand-ink px-5 text-sm font-bold text-white hover:bg-brand-ink/90 focus-visible:outline-brand-ink">
+            Find a court <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+          <Link to="/open-play" className="mx-auto mt-3 min-h-11 content-center text-sm font-semibold underline underline-offset-4">
+            Looking for Open Play?
+          </Link>
+        </form>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">A home court for every kind of player.</p>
     </section>
   );
 }

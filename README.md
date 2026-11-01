@@ -291,6 +291,13 @@ npm run dev
 
 ## Security configuration
 
+See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the security findings, implemented
+fixes, test evidence and required database/function/hosting deployment steps.
+Use Node 22.20.0 or newer and `npm ci` with `package-lock.json`. The old Bun lock
+is archived under `.design/`; npm is the tested package manager. Local environment
+configuration belongs in ignored `.env.local`. Never put backend credentials in
+`VITE_` variables, which are public in browser bundles.
+
 Before deploying the Supabase Edge Functions, configure the `ALLOWED_ORIGINS`
 secret with a comma-separated allowlist of the production and preview frontend
 origins (for example, `https://app.example.com,https://staging.example.com`).

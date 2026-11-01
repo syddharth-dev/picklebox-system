@@ -7,7 +7,7 @@ import { ThemeMetaColor } from "@/components/theme/ThemeMetaColor";
 createRoot(document.getElementById("root")!).render(
   <ThemeProvider
     attribute="class"
-    defaultTheme="dark"
+    defaultTheme="light"
     enableSystem={false}
     enableColorScheme
     disableTransitionOnChange
