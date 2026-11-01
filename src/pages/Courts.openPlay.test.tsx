@@ -5,25 +5,53 @@ import Courts from "./Courts";
 const state = vi.hoisted(() => ({
   rows: [] as { court_id: string; start_time: string; end_time: string; status: string; is_admin_block: boolean; admin_note: string }[],
   toast: vi.fn(), invalidate: vi.fn(), navigate: vi.fn(),
+  error: null as Error | null, refetch: vi.fn(),
 }));
 vi.mock("@/components/layout/Navbar", () => ({ Navbar: () => null }));
 vi.mock("@/components/layout/Footer", () => ({ Footer: () => null }));
-vi.mock("react-router-dom", () => ({ useNavigate: () => state.navigate }));
+vi.mock("react-router-dom", () => ({ useNavigate: () => state.navigate, useSearchParams: () => [new URLSearchParams()] }));
 vi.mock("@/hooks/useAuth", () => ({ useAuth: () => ({ user: { id: "player" } }) }));
 vi.mock("@/hooks/use-toast", () => ({ useToast: () => ({ toast: state.toast }) }));
 vi.mock("@tanstack/react-query", () => ({ useQueryClient: () => client }));
 const client = { invalidateQueries: state.invalidate };
-vi.mock("@/hooks/useCourts", () => ({ useCourts: () => ({ data: courts, isLoading: false }) }));
+vi.mock("@/hooks/useCourts", () => ({ useCourts: () => ({ data: courts, isLoading: false, refetch: state.refetch }) }));
 const courts = [{ id: "court", name: "Court 1", price_per_hour: 200 }];
-vi.mock("@/hooks/useBookings", () => ({ useBookedSlotsAllCourts: () => ({ data: state.rows }) }));
+vi.mock("@/hooks/useBookings", () => ({ useBookedSlotsAllCourts: () => ({ data: state.rows, error: state.error, refetch: state.refetch }) }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { channel: () => ({ on() { return this; }, subscribe() { return this; } }), removeChannel: vi.fn() },
 }));
 const reserved = { court_id: "court", start_time: "18:00:00", end_time: "19:00:00", status: "paid", is_admin_block: true, admin_note: "Open Play" };
-beforeEach(() => { state.rows = []; });
-afterEach(cleanup);
+beforeEach(() => { state.rows = []; state.error = null; state.refetch.mockClear(); vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-10-31T00:00:00Z")); });
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 describe("Open Play court reservations", () => {
+  it("closes the calendar after a player selects a booking date", () => {
+    render(<Courts />);
+    fireEvent.click(screen.getByRole("button", { name: "Choose booking date" }));
+    fireEvent.click(screen.getByRole("button", { name: "Go to next month" }));
+    fireEvent.click(screen.getAllByRole("gridcell", { name: "1" })[0]);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Choose booking date" })).toHaveTextContent("Nov 1, 2026");
+  });
+  it("does not present unknown availability as free court hours", () => {
+    state.error = new Error("Network error"); render(<Courts />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/court availability/);
+    expect(screen.queryByRole("button", { name: "Court 1, 6PM–7PM" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Try again" })); expect(state.refetch).toHaveBeenCalled();
+  });
+  it("disables a past hour using Philippine time", () => {
+    render(<Courts />);
+    expect(screen.getByRole("button", { name: "Court 1, 7AM–8AM, past" })).toBeDisabled();
+  });
+  it("allows assistive and keyboard-generated clicks to toggle available hours", () => {
+    render(<Courts />);
+    const cell = screen.getByRole("button", { name: "Court 1, 6PM–7PM" });
+    fireEvent.click(cell, { detail: 0 });
+    expect(cell).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: "Proceed to Checkout" })).toBeInTheDocument();
+    fireEvent.click(cell, { detail: 0 });
+    expect(cell).toHaveAttribute("aria-pressed", "false");
+  });
   it("labels and disables Open Play hours in the regular booking grid", () => {
     state.rows = [reserved];
     render(<Courts />);

@@ -6,39 +6,36 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { User, Save } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useProfile, useUpdateProfile } from "@/hooks/useProfile";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
+import { PageHeading } from "@/components/layout/PageHeading";
+import { profileSchema } from "@/lib/profile";
 
 const Profile = () => {
   const { user } = useAuth();
-  const { data: profile, isLoading } = useProfile();
+  const { data: profile, isLoading, error, refetch } = useProfile();
   const updateProfile = useUpdateProfile();
   const { toast } = useToast();
 
-  const [formData, setFormData] = useState({
-    full_name: "",
-    phone: "",
-  });
-
-  useEffect(() => {
-    if (profile) {
-      setFormData({
-        full_name: profile.full_name || "",
-        phone: profile.phone || "",
-      });
-    }
-  }, [profile]);
+  const [draft, setDraft] = useState<{ userId: string; full_name: string; phone: string } | null>(null);
+  const formData = draft?.userId === user?.id ? draft : { full_name: profile?.full_name || "", phone: profile?.phone || "" };
 
   const handleSave = async () => {
+    const result = profileSchema.safeParse(formData);
+    if (!result.success) {
+      toast({ title: "Check your details", description: result.error.issues[0].message, variant: "destructive" });
+      return;
+    }
     try {
-      await updateProfile.mutateAsync(formData);
+      await updateProfile.mutateAsync(result.data);
+      setDraft(null);
       toast({ title: "Profile updated successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: "Error",
-        description: error.message || "Failed to update profile",
+        description: error instanceof Error ? error.message : "Failed to update profile",
         variant: "destructive",
       });
     }
@@ -48,14 +45,16 @@ const Profile = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-32 pb-16 md:pt-36">
+      <main id="main-content" className="pt-32 pb-20 md:pt-40">
         <div className="container mx-auto px-4 max-w-2xl">
-          <div className="mb-8">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">My Profile</h1>
-            <p className="text-muted-foreground">Manage your account information</p>
-          </div>
+          <PageHeading title="My profile" description="The details your club needs to keep in touch." />
 
-          {isLoading ? (
+          {error ? (
+            <div role="alert" className="rounded-xl border border-destructive/30 p-6">
+              <p>Could not load your profile. Please try again.</p>
+              <Button variant="outline" className="mt-3" onClick={() => void refetch()}>Try again</Button>
+            </div>
+          ) : isLoading ? (
             <Card>
               <CardContent className="p-6 space-y-4">
                 <Skeleton className="h-20 w-20 rounded-full mx-auto" />
@@ -95,7 +94,9 @@ const Profile = () => {
                   <Input
                     id="full_name"
                     value={formData.full_name}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, full_name: e.target.value }))}
+                    onChange={(e) => setDraft({ ...formData, userId: user!.id, full_name: e.target.value })}
+                    autoComplete="name"
+                    maxLength={120}
                     placeholder="Enter your full name"
                   />
                 </div>
@@ -105,7 +106,9 @@ const Profile = () => {
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
+                    onChange={(e) => setDraft({ ...formData, userId: user!.id, phone: e.target.value })}
+                    autoComplete="tel"
+                    maxLength={32}
                     placeholder="+63 912 345 6789"
                     type="tel"
                   />

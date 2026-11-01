@@ -14,13 +14,14 @@ describe("Open Play QR validity", () => {
   it("displays an authorized QR token", () => {
     show();
     expect(screen.getByText("cached-token")).toBeInTheDocument();
+    expect(screen.getByText("Payment approved — not yet checked in")).toBeInTheDocument();
   });
   it("hides an old cached token after server authorization fails", () => {
     state.error = new Error("QR_NOT_AVAILABLE");
     show();
     expect(screen.getByRole("alert")).toHaveTextContent(/cancelled/);
     expect(screen.queryByText("cached-token")).not.toBeInTheDocument();
-    expect(screen.queryByText(/Valid — not yet/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Payment approved — not yet/)).not.toBeInTheDocument();
   });
   it("waits for renewed authorization before displaying a cached QR", () => {
     state.fetching = true;

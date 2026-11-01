@@ -30,6 +30,9 @@ import {
 import { QRCodeDialog } from "@/components/checkin/QRCodeDialog";
 import { openPlayErrorMessage, openPlayStart } from "@/lib/openPlay";
 import gcashQr from "@/assets/gcash-qr.png";
+import { PageHeading } from "@/components/layout/PageHeading";
+import communityImage from "@/assets/venue/community.jpg";
+import { useNow } from "@/hooks/useNow";
 
 const skillLabel: Record<string, string> = {
   all: "All Levels",
@@ -39,6 +42,7 @@ const skillLabel: Record<string, string> = {
 };
 
 const OpenPlay = () => {
+  const now = useNow();
   const { user, loading: authLoading } = useAuth();
   const { data: sessions, isLoading, error, refetch } = useOpenPlaySessions();
   const { data: courts } = useCourts();
@@ -68,10 +72,10 @@ const OpenPlay = () => {
   if (!user) return <Navigate to="/auth" replace />;
 
   const scheduled = (sessions ?? []).filter((s) => s.status === "scheduled"
-    && (openPlayStart(s) > Date.now() || !!s.my_status));
-  const started = !!openSession && openPlayStart(openSession) <= Date.now();
+    && (openPlayStart(s) > now || !!s.my_status));
+  const started = !!openSession && openPlayStart(openSession) <= now;
   const canCancel = !!openSession && ["registered", "waitlisted"].includes(openSession.my_status)
-    && Date.now() < openPlayStart(openSession) - openSession.cancel_cutoff_hours * 3_600_000;
+    && now < openPlayStart(openSession) - openSession.cancel_cutoff_hours * 3_600_000;
 
   const handleRegister = async () => {
     if (!openSession || started || register.isPending || error) return;
@@ -116,22 +120,15 @@ const OpenPlay = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-32 pb-16 md:pt-36">
-        <div className="container mx-auto px-4">
-          <div className="mb-8 flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-                Open Play
-              </h1>
-              <p className="text-muted-foreground max-w-xl">
-                Drop-in sessions organized by skill level. Register per player — pay via
-                GCash, show up, and play.
-              </p>
-            </div>
+      <main id="main-content" className="pt-32 pb-20 md:pt-40">
+        <div className="site-container">
+          <PageHeading title="Open Play" description="A game is a good place to meet. Find a session for your level, register as a player, and join the people on court."
+            image={communityImage} imageAlt="Players greeting each other at The Pickle Box">
             <Badge variant="secondary" className="text-sm">
               <Trophy className="h-3 w-3 mr-1" /> {scheduled.filter((s) => openPlayStart(s) > Date.now()).length} upcoming
             </Badge>
-          </div>
+            <span className="text-xs text-muted-foreground">Fees and remaining spots are shown on each session.</span>
+          </PageHeading>
 
           {error ? (
             <div role="alert" className="rounded-lg border border-destructive/30 p-6">
@@ -164,7 +161,7 @@ const OpenPlay = () => {
                     role="button"
                     tabIndex={0}
                     aria-label={`View ${s.title || "Open Play"} session`}
-                    className="hover:shadow-md transition-shadow cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => selectSession(s.id)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
@@ -173,7 +170,7 @@ const OpenPlay = () => {
                       }
                     }}
                   >
-                    <CardContent className="p-5 space-y-3">
+                    <CardContent className="space-y-5 p-6">
                       <div className="flex items-start justify-between">
                         <div>
                           <h3 className="font-semibold text-lg text-foreground">

@@ -45,6 +45,7 @@ export function openPlayErrorMessage(error: unknown): string {
     PAYMENT_REFERENCE_REQUIRED: "Enter your GCash payment reference.",
     INVALID_PAYMENT_REFERENCE: "Payment references must be 128 characters or fewer.",
     ALREADY_REGISTERED: "You already have a registration for this session.",
+    REGISTRATION_RATE_LIMIT: "Too many registrations in a short time. Wait a minute before trying again.",
     CANCELLATION_CUTOFF_PASSED: "The cancellation deadline has passed. Contact the venue for help.",
     REGISTRATION_NOT_CANCELLABLE: "This registration can no longer be cancelled online.",
     REG_NOT_FOUND: "This registration is no longer available.",

@@ -32,5 +32,6 @@ describe("Open Play validation and venue time", () => {
     expect(openPlayErrorMessage({ message: "COURT_TIME_CONFLICT" })).toMatch(/another court or time/);
     expect(openPlayErrorMessage({ message: "CANCELLATION_CUTOFF_PASSED" })).toMatch(/deadline has passed/);
     expect(openPlayErrorMessage(null)).toMatch(/try again/);
+    expect(openPlayErrorMessage({ message: "REGISTRATION_RATE_LIMIT" })).toMatch(/Wait a minute/);
   });
 });

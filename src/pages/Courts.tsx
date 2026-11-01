@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarIcon, Lock, CreditCard, X } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { CalendarIcon, Lock, CreditCard, X, Check, Plus } from "lucide-react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useMemo, useState, useEffect } from "react";
-import { format, addDays, startOfDay } from "date-fns";
+import { format, addDays, startOfDay, isValid, parseISO } from "date-fns";
 import { cn } from "@/lib/utils";
 import { useCourts } from "@/hooks/useCourts";
 import { useBookedSlotsAllCourts } from "@/hooks/useBookings";
@@ -15,6 +15,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { PageHeading } from "@/components/layout/PageHeading";
+import venueImage from "@/assets/venue/courts.jpg";
+import { openPlayStart, venueDate } from "@/lib/openPlay";
+import { useNow } from "@/hooks/useNow";
 
 const TIME_SLOTS = [
   { label: "7AM–8AM", start: "07:00:00", display: "7:00 AM" },
@@ -39,23 +43,40 @@ const TIME_SLOTS = [
 const makeKey = (courtId: string, slotStart: string) => `${courtId}::${slotStart}`;
 
 const Courts = () => {
-  const { data: courts, isLoading } = useCourts();
+  const { data: courts, isLoading, error: courtsError, refetch: refetchCourts } = useCourts();
+  const now = useNow();
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const [selectedDate, setSelectedDate] = useState<Date>(startOfDay(new Date()));
+  const [searchParams] = useSearchParams();
+  const [selectedDate, setSelectedDate] = useState<Date>(() => {
+    const requested = searchParams.get("date");
+    const today = parseISO(venueDate());
+    const date = requested && /^\d{4}-\d{2}-\d{2}$/.test(requested) ? parseISO(requested) : today;
+    return isValid(date) && date >= today && date <= addDays(today, 60) ? startOfDay(date) : today;
+  });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
   const [dragging, setDragging] = useState<null | { mode: "add" | "remove" }>(null);
 
   const dateStr = format(selectedDate, "yyyy-MM-dd");
-  const { data: bookedRows } = useBookedSlotsAllCourts(dateStr);
+  const { data: bookedRows, error: slotsError, isLoading: slotsLoading, refetch: refetchSlots } = useBookedSlotsAllCourts(dateStr);
+  const availabilityUnavailable = !!courtsError || !!slotsError || slotsLoading;
+  const isPast = (start_time: string) => openPlayStart({ session_date: dateStr, start_time }) <= now;
 
   // Reset selection when date changes
   useEffect(() => {
     setSelected(new Set());
   }, [dateStr]);
+
+  useEffect(() => {
+    setSelected((previous) => {
+      const future = new Set([...previous].filter((key) => openPlayStart({ session_date: dateStr, start_time: key.split("::")[1] }) > now));
+      return future.size === previous.size ? previous : future;
+    });
+  }, [dateStr, now]);
 
   // Live availability: subscribe to booking_slots changes for the current date
   // (booking_slots is visible to all authenticated users; bookings is not).
@@ -73,7 +94,7 @@ const Courts = () => {
         (payload) => {
           queryClient.invalidateQueries({ queryKey: ["booked-slots-all", dateStr] });
 
-          const row: any = payload.new || payload.old;
+          const row = payload.eventType === "DELETE" ? payload.old : payload.new;
           if (!row) return;
           // Only react when a slot became reserved (or was deleted)
           const nowReserved = payload.eventType !== "DELETE" && row.is_reserved === true;
@@ -170,7 +191,7 @@ const Courts = () => {
   };
 
   const handlePointerDown = (courtId: string, slotStart: string, e: React.PointerEvent) => {
-    if (isBooked(courtId, slotStart)) return;
+    if (e.button > 0 || availabilityUnavailable || isPast(slotStart) || isBooked(courtId, slotStart)) return;
     const key = makeKey(courtId, slotStart);
     const mode: "add" | "remove" = selected.has(key) ? "remove" : "add";
     setDragging({ mode });
@@ -181,7 +202,7 @@ const Courts = () => {
 
   const handlePointerEnter = (courtId: string, slotStart: string) => {
     if (!dragging) return;
-    if (isBooked(courtId, slotStart)) return;
+    if (availabilityUnavailable || isPast(slotStart) || isBooked(courtId, slotStart)) return;
     toggleCell(makeKey(courtId, slotStart), dragging.mode);
   };
 
@@ -212,15 +233,16 @@ const Courts = () => {
   const totalPrice = selections.reduce((s, sel) => s + sel.slots.length * sel.pricePerHour, 0);
 
   const handleProceed = () => {
+    if (availabilityUnavailable) return;
     if (!user) {
       toast({ title: "Please sign in", description: "You need an account to book courts." });
-      navigate("/auth");
+      navigate("/auth", { state: { from: "/courts?date=" + dateStr } });
       return;
     }
     if (selections.length === 0) return;
     navigate("/checkout", {
       state: {
-        date: selectedDate.toISOString(),
+        date: dateStr,
         selections,
         totalPrice,
       },
@@ -231,22 +253,16 @@ const Courts = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <main className="pt-32 pb-32 md:pt-36">
-        <div className="container mx-auto px-4">
-          <div className="mb-6">
-            <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-2">
-              Book a Court
-            </h1>
-            <p className="text-muted-foreground text-sm md:text-base">
-              Select time slots — click or drag to select multiple slots across courts.
-            </p>
-          </div>
+      <main id="main-content" className="pt-32 pb-32 md:pt-40">
+        <div className="site-container">
+          <PageHeading title="Book a court" description="Make a little time for a game. Pick a date, then select the hours and courts that work for your group."
+            image={venueImage} imageAlt="The Pickle Box indoor courts" />
 
           {/* Date picker + legend */}
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
-            <Popover>
+          <div className="mb-5 flex flex-col gap-4 rounded-xl border border-border bg-card p-4 sm:flex-row sm:items-center md:p-5">
+            <Popover open={datePickerOpen} onOpenChange={setDatePickerOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto justify-start">
+                <Button variant="outline" className="w-full sm:w-auto justify-start" aria-label="Choose booking date">
                   <CalendarIcon className="h-4 w-4 mr-2" />
                   {format(selectedDate, "EEEE, MMM d, yyyy")}
                 </Button>
@@ -255,8 +271,8 @@ const Courts = () => {
                 <Calendar
                   mode="single"
                   selected={selectedDate}
-                  onSelect={(d) => d && setSelectedDate(startOfDay(d))}
-                  disabled={(d) => d < startOfDay(new Date()) || d > addDays(new Date(), 60)}
+                  onSelect={(d) => { if (d) { setSelectedDate(startOfDay(d)); setDatePickerOpen(false); } }}
+                  disabled={(d) => d < parseISO(venueDate()) || d > addDays(parseISO(venueDate()), 60)}
                   initialFocus
                   className={cn("p-3 pointer-events-auto")}
                 />
@@ -282,22 +298,31 @@ const Courts = () => {
               </div>
             </div>
           </div>
+          <p className="mb-4 text-xs leading-5 text-muted-foreground">Select each hour you want to reserve. You can drag across neighboring hours, too. All times are Philippine time.</p>
 
           {/* Grid */}
-          {isLoading || !courts ? (
+          {courtsError || slotsError ? (
+            <div role="alert" className="rounded-xl border border-destructive/30 p-6">
+              <p>Could not load court availability. Please try again before selecting a time.</p>
+              <Button variant="outline" className="mt-3" onClick={() => { void refetchCourts(); void refetchSlots(); }}>Try again</Button>
+            </div>
+          ) : isLoading || slotsLoading ? (
             <Skeleton className="h-[600px] w-full rounded-xl" />
+          ) : !courts?.length ? (
+            <p className="rounded-xl border border-border p-6">No courts are available for online booking right now. Please check back later.</p>
           ) : (
-            <div className="rounded-xl border border-border bg-card overflow-hidden select-none">
+            <div key={dateStr} className="booking-grid-enter overflow-x-auto rounded-xl border border-border bg-card select-none">
+            <div style={{ minWidth: Math.max(340, 88 + courts.length * 116) }}>
               {/* Header row */}
               <div
-                className="grid bg-muted/40 border-b border-border text-xs font-semibold text-muted-foreground uppercase tracking-wider"
+                className="grid bg-muted/50 border-b border-border text-xs font-semibold text-muted-foreground"
                 style={{ gridTemplateColumns: `88px repeat(${courts.length}, minmax(0, 1fr))` }}
               >
                 <div className="p-3">Time</div>
                 {courts.map((court) => (
                   <div key={court.id} className="p-3 border-l border-border">
                     <div className="text-foreground text-sm normal-case tracking-normal">{court.name}</div>
-                    <div className="text-[10px] font-normal text-muted-foreground normal-case tracking-normal">
+                    <div className="mt-1 text-xs font-normal text-muted-foreground normal-case tracking-normal">
                       ₱{court.price_per_hour}/hr
                     </div>
                   </div>
@@ -321,20 +346,26 @@ const Courts = () => {
                     const isPaid = info?.status === "paid";
                     const key = makeKey(court.id, slot.start);
                     const isSelected = selected.has(key);
+                    const past = isPast(slot.start);
                     return (
                       <button
                         key={court.id}
                         type="button"
-                        disabled={booked}
-                        aria-label={`${court.name}, ${slot.label}${booked ? ", reserved" : ""}`}
+                        disabled={booked || past || availabilityUnavailable}
+                        aria-label={`${court.name}, ${slot.label}${booked ? ", reserved" : past ? ", past" : ""}`}
+                        aria-pressed={booked ? undefined : isSelected}
+                        onClick={(event) => {
+                          if (event.detail === 0 && !booked && !past && !availabilityUnavailable) toggleCell(key, isSelected ? "remove" : "add");
+                        }}
                         onPointerDown={(e) => handlePointerDown(court.id, slot.start, e)}
                         onPointerEnter={() => handlePointerEnter(court.id, slot.start)}
                         className={cn(
-                          "border-l border-border h-14 md:h-16 transition-colors text-xs font-medium touch-none",
+                          "booking-cell group border-l border-border h-14 md:h-16 transition-colors text-xs font-medium touch-none",
                           booked && isAdminBlock && "bg-accent/50 cursor-not-allowed text-foreground",
                           booked && !isAdminBlock && !isPaid && "bg-muted/60 cursor-not-allowed text-muted-foreground",
                           booked && !isAdminBlock && isPaid && "bg-destructive/15 cursor-not-allowed text-destructive",
-                          !booked && !isSelected && "bg-background hover:bg-primary/10 cursor-pointer",
+                          past && !booked && "bg-muted/40 text-muted-foreground cursor-not-allowed",
+                          !booked && !past && !isSelected && "bg-background hover:bg-primary/10 cursor-pointer",
                           !booked && isSelected && "bg-primary text-primary-foreground shadow-inner"
                         )}
                       >
@@ -343,14 +374,15 @@ const Courts = () => {
                             <Lock className="h-3 w-3" />
                             {isAdminBlock ? info.note === "Open Play" ? "Open Play" : "Admin Reserved" : isPaid ? "Booked" : "Reserved"}
                           </span>
-                        ) : isSelected ? (
-                          <span>✓</span>
-                        ) : null}
+                        ) : past ? <span>Past</span> : isSelected ? (
+                          <span className="slot-check" aria-hidden="true"><Check className="h-4 w-4" /></span>
+                        ) : <Plus aria-hidden="true" className="mx-auto h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />}
                       </button>
                     );
                   })}
                 </div>
               ))}
+            </div>
             </div>
           )}
         </div>
@@ -358,14 +390,14 @@ const Courts = () => {
 
       {/* Sticky checkout bar */}
       {selections.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-background/95 backdrop-blur-md shadow-lg animate-slide-up">
+        <div className="booking-summary fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-lg">
           <div className="container mx-auto px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3">
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2 flex-wrap" aria-live="polite" aria-atomic="true">
                 <span className="text-sm font-semibold text-foreground">
                   {totalHours} {totalHours === 1 ? "slot" : "slots"} · {selections.length} {selections.length === 1 ? "court" : "courts"}
                 </span>
-                <span className="text-lg font-bold text-primary">₱{totalPrice}</span>
+                <span key={totalHours} className="booking-total text-lg font-bold tabular-nums text-primary">₱{totalPrice}</span>
               </div>
               <div className="text-xs text-muted-foreground mt-0.5 truncate">
                 {selections.map((s) => `${s.courtName} (${s.slots.length}h)`).join(" · ")}
@@ -376,7 +408,7 @@ const Courts = () => {
                 <X className="h-4 w-4 mr-1" />
                 Clear
               </Button>
-              <Button variant="hero" size="lg" onClick={handleProceed}>
+              <Button variant="hero" size="lg" onClick={handleProceed} disabled={availabilityUnavailable || selections.some((s) => s.slots.some(isPast))}>
                 <CreditCard className="h-4 w-4 mr-2" />
                 Proceed to Checkout
               </Button>
