@@ -29,3 +29,8 @@ dist-ssr
 # Local AI agent tooling
 .agents/
 skills-lock.json
+
+# Supabase CLI state and private deployment snapshots
+supabase/.temp/
+supabase/.branches/
+.design/deployment-*/

@@ -293,6 +293,8 @@ npm run dev
 
 See [SECURITY_AUDIT.md](SECURITY_AUDIT.md) for the security findings, implemented
 fixes, test evidence and required database/function/hosting deployment steps.
+The completed Supabase rollout and remaining Vercel frontend step are recorded in
+[DEPLOYMENT_2026-11-03.md](DEPLOYMENT_2026-11-03.md).
 Use Node 22.20.0 or newer and `npm ci` with `package-lock.json`. The old Bun lock
 is archived under `.design/`; npm is the tested package manager. Local environment
 configuration belongs in ignored `.env.local`. Never put backend credentials in
