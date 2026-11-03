@@ -72,7 +72,7 @@ beforeAll(async () => {
       $$ SELECT decode(md5(random()::text), 'hex') $$;
     CREATE PUBLICATION supabase_realtime;
   `);
-  await db.exec(migration("20260727014544_e0a26cb7-31ad-4eeb-80ff-9d242c96a06e.sql"));
+  await db.exec(migration("20260727014548_e0a26cb7-31ad-4eeb-80ff-9d242c96a06e.sql"));
   await db.exec(migration("20260731094023_0b3d2e3f-cf58-4d05-b308-0ea17aaae0a2.sql"));
   await db.exec(migration("20260916090641_152fd4a3-3ff6-484d-a798-981ff065ee17.sql"));
   const hardening = migration("20260917120000_security_hardening.sql");

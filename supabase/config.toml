@@ -1,10 +1,14 @@
 project_id = "lkdmueujbxyeiqunpiso"
 
+# This project signs user JWTs with ES256. Each handler verifies the bearer
+# token through Supabase Auth getUser(); cleanup additionally checks admin or
+# service-role authorization. Keep the legacy gateway JWT check disabled for
+# asymmetric-key compatibility. Do not remove the handlers' authentication.
 [functions.cleanup-expired-bookings]
-verify_jwt = true
+verify_jwt = false
 
 [functions.send-booking-notification]
-verify_jwt = true
+verify_jwt = false
 
 [functions.faq-chat]
-verify_jwt = true
+verify_jwt = false

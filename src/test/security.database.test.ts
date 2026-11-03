@@ -36,7 +36,7 @@ beforeAll(async () => {
       $$ SELECT decode(md5(random()::text), 'hex') $$;
     CREATE PUBLICATION supabase_realtime;
   `);
-  await db.exec(migration("20260205050532_7a98f9ad-8ae3-4360-be08-41e668ee554a.sql"));
+  await db.exec(migration("20260205050528_7a98f9ad-8ae3-4360-be08-41e668ee554a.sql"));
   await db.exec(`
     ALTER TABLE bookings ADD COLUMN is_admin_block boolean NOT NULL DEFAULT false, ADD COLUMN admin_note text;
     -- The later overlap migration retires the original all-status unique key.
@@ -50,11 +50,11 @@ beforeAll(async () => {
     CREATE FUNCTION public.create_booking_reservation(uuid,date,time[],text) RETURNS jsonb
       LANGUAGE sql SECURITY DEFINER AS $$ SELECT '{"legacy": true}'::jsonb $$;
   `);
-  await db.exec(migration("20260205050611_edb67597-8710-4ac0-b9fb-7b571ea1321a.sql"));
-  await db.exec(migration("20260205053357_398840fb-f162-4e2e-9a38-4b513e1eba60.sql"));
-  await db.exec(migration("20260301133148_035be763-5145-49b4-84e7-54bf2ae6f9fd.sql"));
-  await db.exec(migration("20260302005704_bd805505-a553-416f-bbba-e7dc9627c3d5.sql"));
-  await db.exec(migration("20260727014544_e0a26cb7-31ad-4eeb-80ff-9d242c96a06e.sql"));
+  await db.exec(migration("20260205050608_edb67597-8710-4ac0-b9fb-7b571ea1321a.sql"));
+  await db.exec(migration("20260205053354_398840fb-f162-4e2e-9a38-4b513e1eba60.sql"));
+  await db.exec(migration("20260301133144_035be763-5145-49b4-84e7-54bf2ae6f9fd.sql"));
+  await db.exec(migration("20260302005701_bd805505-a553-416f-bbba-e7dc9627c3d5.sql"));
+  await db.exec(migration("20260727014548_e0a26cb7-31ad-4eeb-80ff-9d242c96a06e.sql"));
   await db.exec(migration("20260731094023_0b3d2e3f-cf58-4d05-b308-0ea17aaae0a2.sql"));
   await db.exec(migration("20260916090641_152fd4a3-3ff6-484d-a798-981ff065ee17.sql"));
   const hardening = migration("20260917120000_security_hardening.sql");
