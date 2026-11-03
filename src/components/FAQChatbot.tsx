@@ -5,19 +5,24 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
-import picklebotIcon from "@/assets/picklebot-avatar.jpg";
+import picklebotIcon from "@/assets/picklebot-avatar-256.jpg";
 import { Link, useLocation } from "react-router-dom";
 
 type Msg = { role: "user" | "assistant"; content: string };
+type ChatUser = ReturnType<typeof useAuth>["user"];
 
 const GREETING: Msg = {
   role: "assistant",
   content:
-    "Hi! I'm **PickleBot** 🎾 — ask me anything about **The Pickle Box**: booking courts, GCash payments, pricing, or your account.",
+    "Hi! I'm **PickleBot**. I can help with court bookings, Open Play, GCash payments, and check-in passes.",
 };
 
 export function FAQChatbot() {
   const { user } = useAuth();
+  return <FAQChatbotSession key={user?.id ?? "anonymous"} user={user} />;
+}
+
+function FAQChatbotSession({ user }: { user: ChatUser }) {
   const { pathname } = useLocation();
   const aboveCheckout = pathname === "/courts" || pathname === "/checkout";
   const [open, setOpen] = useState(false);
@@ -26,16 +31,19 @@ export function FAQChatbot() {
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const requestVersion = useRef({ version: 0 });
+
+  const closeChat = () => {
+    setOpen(false);
+    requestAnimationFrame(() => triggerRef.current?.focus());
+  };
 
   useEffect(() => {
     const requests = requestVersion.current;
-    requests.version++;
-    setMessages([GREETING]);
-    setInput("");
-    setLoading(false);
     return () => { requests.version++; };
-  }, [user?.id]);
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
@@ -43,9 +51,9 @@ export function FAQChatbot() {
 
   useEffect(() => {
     if (!open) return;
-    const timeout = setTimeout(() => inputRef.current?.focus(), 50);
+    const timeout = setTimeout(() => (user ? inputRef.current : closeButtonRef.current)?.focus(), 50);
     return () => clearTimeout(timeout);
-  }, [open, loading]);
+  }, [open, loading, user]);
 
   const send = async () => {
     const text = input.trim();
@@ -85,42 +93,44 @@ export function FAQChatbot() {
   return (
     <>
       {/* Floating trigger */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-label={open ? "Close chat" : "Open chat"}
-        aria-expanded={open}
-        aria-controls="picklebot-panel"
-        className={cn(
-          "fixed right-4 z-[45] flex h-14 items-center gap-2 rounded-full border border-white/20 bg-brand-ink p-1.5 text-white shadow-lg transition-colors hover:bg-brand-ink/95 focus-visible:outline-brand-lime sm:right-6",
-          aboveCheckout ? "bottom-28" : "bottom-5",
-          open ? "w-14 justify-center" : "pr-1.5 md:pr-5"
-        )}
-      >
-        {open ? (
-          <X className="h-6 w-6" />
-        ) : (
+      {!open && (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-label="Open chat"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="picklebot-panel"
+          className={cn(
+            "fixed right-4 z-[45] flex h-14 items-center gap-2 rounded-full border border-white/20 bg-brand-ink p-1.5 pr-1.5 text-white shadow-lg transition-colors hover:bg-brand-ink/95 focus-visible:outline-brand-lime sm:right-6 md:pr-5",
+            aboveCheckout ? "bottom-28" : "bottom-5"
+          )}
+        >
           <img
             src={picklebotIcon}
             alt="PickleBot"
+            width={44}
+            height={44}
             className="h-11 w-11 rounded-full bg-white object-contain"
           />
-        )}
-        {!open && <span className="hidden text-sm font-semibold md:inline">Ask PickleBot</span>}
-      </button>
+          <span className="hidden text-sm font-semibold md:inline">Ask PickleBot</span>
+        </button>
+      )}
 
       {/* Chat panel */}
       {open && (
         <div
           id="picklebot-panel"
-          role="region"
+          role="dialog"
+          aria-modal="false"
           aria-label="PickleBot assistant"
-          onKeyDown={(event) => { if (event.key === "Escape") setOpen(false); }}
+          onKeyDown={(event) => { if (event.key === "Escape") closeChat(); }}
           className={cn(
             "fixed z-[45] flex flex-col overflow-hidden",
-            "right-4 h-[min(560px,calc(100dvh-12rem))] w-[calc(100vw-2rem)] max-w-[380px] sm:right-6",
-            "rounded-xl border border-border bg-card shadow-2xl animate-fade-in",
-            aboveCheckout ? "bottom-44" : "bottom-24"
+            "bottom-3 right-3 h-[min(520px,calc(100dvh-1.5rem))] w-[calc(100vw-1.5rem)] max-w-[380px] sm:bottom-6 sm:right-6 sm:h-[min(560px,calc(100dvh-3rem))]",
+            "overscroll-contain rounded-xl border border-border bg-card shadow-2xl animate-fade-in",
+            aboveCheckout && "sm:bottom-28"
           )}
         >
           {/* Header */}
@@ -129,6 +139,8 @@ export function FAQChatbot() {
               <img
                 src={picklebotIcon}
                 alt="PickleBot"
+                width={36}
+                height={36}
                 className="h-9 w-9 object-contain"
               />
             </div>
@@ -136,6 +148,10 @@ export function FAQChatbot() {
               <div className="font-semibold text-sm">PickleBot</div>
               <div className="mt-1 text-xs text-white/65">A little help before you play</div>
             </div>
+            <button ref={closeButtonRef} type="button" onClick={closeChat} aria-label="Close chat"
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-lg text-white/75 hover:bg-white/10 hover:text-white focus-visible:outline-brand-lime">
+              <X className="h-5 w-5" aria-hidden="true" />
+            </button>
           </div>
 
           {/* Messages */}
@@ -183,6 +199,9 @@ export function FAQChatbot() {
           >
             <input
               ref={inputRef}
+              name="picklebot-question"
+              autoComplete="off"
+              spellCheck={false}
               aria-label="Ask PickleBot"
               value={input}
               onChange={(e) => setInput(e.target.value)}

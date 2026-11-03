@@ -4,6 +4,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const questions = [
   { question: "Can I come without a group?", answer: "Yes. Open Play lets you register as an individual. Check each session for its skill level, fee, and remaining spots." },
+  { question: "How far ahead can I book?", answer: "Court booking dates open 60 days ahead. Choose a date to see the courts and hours currently available." },
   { question: "How do I pay for a reservation?", answer: "Choose your hours, pay using the venue's GCash QR, and enter your payment reference. Your reservation stays pending until staff approve your payment." },
   { question: "Where will I find my check-in pass?", answer: "Open My bookings after your payment is approved. Your reservation will have a Show check-in QR button. Open Play passes are available in your registered session." },
 ];

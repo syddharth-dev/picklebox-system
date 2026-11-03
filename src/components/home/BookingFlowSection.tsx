@@ -48,7 +48,6 @@ export function BookingFlowSection() {
   return (
     <section aria-labelledby="booking-flow-title" className="site-container site-section">
       <div className="mx-auto max-w-3xl text-center">
-        <p className="mb-4 text-sm font-bold text-muted-foreground">How it works</p>
         <h2 id="booking-flow-title" className="section-title">Book your court<br />in 3 simple steps.</h2>
         <p className="mx-auto mt-5 max-w-lg text-base leading-7 text-muted-foreground md:text-lg">From finding a time to your first serve. Here is how to get on court.</p>
       </div>

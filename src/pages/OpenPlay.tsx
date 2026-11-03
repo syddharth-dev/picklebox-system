@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { format, parseISO } from "date-fns";
 import { Users, Clock, Calendar, MapPin, Trophy, X, QrCode, CheckCircle2 } from "lucide-react";
 import { Navbar } from "@/components/layout/Navbar";
@@ -16,6 +16,16 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
@@ -41,15 +51,24 @@ const skillLabel: Record<string, string> = {
   "4.0+": "4.0+",
 };
 
+const phpCurrency = new Intl.NumberFormat("en-PH", {
+  style: "currency",
+  currency: "PHP",
+  maximumFractionDigits: 0,
+});
+const formatPrice = (price: number) => price > 0 ? phpCurrency.format(price) : "Free";
+
 const OpenPlay = () => {
   const now = useNow();
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const { data: sessions, isLoading, error, refetch } = useOpenPlaySessions();
   const { data: courts } = useCourts();
-  const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedSessionId = searchParams.get("session");
   const openSession = sessions?.find((session) => session.id === selectedSessionId);
   const [paymentRef, setPaymentRef] = useState("");
   const [qrOpen, setQrOpen] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
   const { toast } = useToast();
   const register = useRegisterOpenPlay();
   const cancel = useCancelOpenPlayRegistration();
@@ -63,13 +82,11 @@ const OpenPlay = () => {
   const { data: roster, isLoading: rosterLoading, error: rosterError, refetch: refetchRoster } = useOpenPlayRoster(openSession?.id);
 
   const selectSession = (id: string | null) => {
-    setSelectedSessionId(id);
+    setSearchParams(id ? { session: id } : {}, { replace: true });
     setPaymentRef("");
     setQrOpen(false);
+    setCancelConfirmOpen(false);
   };
-
-  if (authLoading) return null;
-  if (!user) return <Navigate to="/auth" replace />;
 
   const scheduled = (sessions ?? []).filter((s) => s.status === "scheduled"
     && (openPlayStart(s) > now || !!s.my_status));
@@ -78,7 +95,7 @@ const OpenPlay = () => {
     && now < openPlayStart(openSession) - openSession.cancel_cutoff_hours * 3_600_000;
 
   const handleRegister = async () => {
-    if (!openSession || started || register.isPending || error) return;
+    if (!user || !openSession || started || register.isPending || error) return;
     if (openSession.price_php > 0 && !paymentRef.trim()) {
       toast({
         title: "GCash reference required",
@@ -115,7 +132,7 @@ const OpenPlay = () => {
     }
   };
 
-  const myRosterRow = roster?.find((r) => r.user_id === user.id);
+  const myRosterRow = user ? roster?.find((r) => r.user_id === user.id) : undefined;
 
   return (
     <div className="min-h-screen bg-background">
@@ -125,9 +142,9 @@ const OpenPlay = () => {
           <PageHeading title="Open Play" description="A game is a good place to meet. Find a session for your level, register as a player, and join the people on court."
             image={communityImage} imageAlt="Players greeting each other at The Pickle Box">
             <Badge variant="secondary" className="text-sm">
-              <Trophy className="h-3 w-3 mr-1" /> {scheduled.filter((s) => openPlayStart(s) > Date.now()).length} upcoming
+              <Trophy className="h-3 w-3 mr-1" /> {scheduled.filter((s) => openPlayStart(s) > now).length} upcoming
             </Badge>
-            <span className="text-xs text-muted-foreground">Fees and remaining spots are shown on each session.</span>
+            <span className="text-xs text-muted-foreground">Fees and remaining spots are public. Sign in only to register.</span>
           </PageHeading>
 
           {error ? (
@@ -156,19 +173,12 @@ const OpenPlay = () => {
                 const isFull = s.registered_count >= s.max_players;
                 const mine = s.my_status;
                 return (
-                  <Card
+                  <button
+                    type="button"
                     key={s.id}
-                    role="button"
-                    tabIndex={0}
                     aria-label={`View ${s.title || "Open Play"} session`}
-                    className="cursor-pointer transition-colors hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="w-full rounded-xl border bg-card text-left text-card-foreground transition-colors hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-ring"
                     onClick={() => selectSession(s.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        selectSession(s.id);
-                      }
-                    }}
                   >
                     <CardContent className="space-y-5 p-6">
                       <div className="flex items-start justify-between">
@@ -222,7 +232,7 @@ const OpenPlay = () => {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-bold text-foreground">
-                            {s.price_php > 0 ? `₱${s.price_php}` : "Free"}
+                            {formatPrice(s.price_php)}
                           </p>
                           {isFull && !mine && (
                             <p className="text-xs text-destructive">Full</p>
@@ -230,7 +240,7 @@ const OpenPlay = () => {
                         </div>
                       </div>
                     </CardContent>
-                  </Card>
+                  </button>
                 );
               })}
             </div>
@@ -239,7 +249,7 @@ const OpenPlay = () => {
       </main>
 
       <Dialog open={!!openSession} onOpenChange={(o) => !o && selectSession(null)}>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto max-w-lg">
+        <DialogContent className="max-h-[85dvh] max-w-lg overscroll-contain overflow-y-auto">
           {openSession && (
             <>
               <DialogHeader>
@@ -264,7 +274,7 @@ const OpenPlay = () => {
                   <div className="p-3 rounded-lg bg-muted/50">
                     <p className="text-xs text-muted-foreground">Fee per player</p>
                     <p className="font-medium">
-                      {openSession.price_php > 0 ? `₱${openSession.price_php}` : "Free"}
+                      {formatPrice(openSession.price_php)}
                     </p>
                   </div>
                   <div className="p-3 rounded-lg bg-muted/50">
@@ -283,45 +293,50 @@ const OpenPlay = () => {
                   <p className="text-sm text-muted-foreground">{openSession.notes}</p>
                 )}
 
-                <div>
-                  <p className="text-sm font-medium mb-2">Your registration</p>
-                  <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
-                    {rosterLoading ? (
-                      <p className="text-sm text-muted-foreground">Loading your registration...</p>
-                    ) : rosterError ? (
-                      <div role="alert" className="text-sm text-destructive">
-                        Could not load your registration.
-                        <Button variant="link" onClick={() => void refetchRoster()}>Try again</Button>
-                      </div>
-                    ) : (roster ?? []).length === 0 && (
-                      <p className="text-sm text-muted-foreground">You haven't registered for this session.</p>
-                    )}
-                    {(roster ?? []).map((r) => (
-                      <div
-                        key={r.registration_id}
-                        className="flex items-center justify-between text-sm py-1"
-                      >
-                        <span>{r.full_name || "Player"}</span>
-                        {r.status === "waitlisted" ? (
-                          <Badge variant="secondary" className="text-xs">
-                            Waitlist #{r.waitlist_position}
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-xs">
-                            {r.status === "checked_in" ? "Checked in" : r.status === "no_show" ? "No-show" : "Registered"}
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
+                {user ? (
+                  <div>
+                    <p className="text-sm font-medium mb-2">Your registration</p>
+                    <div className="max-h-40 overflow-y-auto space-y-1 pr-1">
+                      {rosterLoading ? (
+                        <p className="text-sm text-muted-foreground">Loading your registration…</p>
+                      ) : rosterError ? (
+                        <div role="alert" className="text-sm text-destructive">
+                          Could not load your registration.
+                          <Button variant="link" onClick={() => void refetchRoster()}>Try again</Button>
+                        </div>
+                      ) : (roster ?? []).length === 0 && (
+                        <p className="text-sm text-muted-foreground">You haven't registered for this session.</p>
+                      )}
+                      {(roster ?? []).map((r) => (
+                        <div key={r.registration_id} className="flex items-center justify-between py-1 text-sm">
+                          <span>{r.full_name || "Player"}</span>
+                          {r.status === "waitlisted" ? (
+                            <Badge variant="secondary" className="text-xs">Waitlist #{r.waitlist_position}</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">
+                              {r.status === "checked_in" ? "Checked in" : r.status === "no_show" ? "No-show" : "Registered"}
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <p className="rounded-lg bg-muted/50 p-4 text-sm leading-6 text-muted-foreground">
+                    You can review the full session before signing in. An account is required only to register or join the waitlist.
+                  </p>
+                )}
 
-                {!openSession.my_status && openSession.price_php > 0 && (
+                {user && !openSession.my_status && openSession.price_php > 0 && (
                   <div className="space-y-2">
                     <img src={gcashQr} alt="Scan this GCash QR code to pay the session fee" className="mx-auto h-40 w-40 rounded-lg object-contain bg-white" />
                     <Label htmlFor="gcash-ref">GCash reference number</Label>
                     <Input
                       id="gcash-ref"
+                      name="gcash-reference"
+                      autoComplete="off"
+                      inputMode="numeric"
+                      spellCheck={false}
                       placeholder="e.g. 1234567890123"
                       value={paymentRef}
                       maxLength={128}
@@ -375,10 +390,16 @@ const OpenPlay = () => {
                 ))}
 
               <DialogFooter>
-                {openSession.my_status ? (
+                {!user ? (
+                  <Button asChild>
+                    <Link to="/auth" state={{ from: `/open-play?session=${openSession.id}` }}>
+                      Sign in to register
+                    </Link>
+                  </Button>
+                ) : openSession.my_status ? (
                   <Button
                     variant="destructive"
-                    onClick={() => myRosterRow && handleCancel(myRosterRow.registration_id)}
+                      onClick={() => setCancelConfirmOpen(true)}
                     disabled={cancel.isPending || !myRosterRow || !canCancel || !!rosterError || !!error}
                   >
                     <X className="h-4 w-4 mr-1" />
@@ -388,7 +409,7 @@ const OpenPlay = () => {
                   <Button onClick={handleRegister} disabled={register.isPending || started || !!error || !!rosterError || rosterLoading}>
                     {openSession.registered_count >= openSession.max_players
                       ? "Join Waitlist"
-                      : `Register${openSession.price_php > 0 ? ` — ₱${openSession.price_php}` : ""}`}
+                      : `Register${openSession.price_php > 0 ? ` — ${formatPrice(openSession.price_php)}` : ""}`}
                   </Button>
                 )}
               </DialogFooter>
@@ -396,6 +417,27 @@ const OpenPlay = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={cancelConfirmOpen} onOpenChange={setCancelConfirmOpen}>
+        <AlertDialogContent className="overscroll-contain">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel this registration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your spot may be offered to the next player. You can register again later if the session still has space.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep registration</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={cancel.isPending || !myRosterRow}
+              onClick={() => myRosterRow && void handleCancel(myRosterRow.registration_id)}
+            >
+              Cancel registration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <QRCodeDialog
         open={qrOpen && !!openSession}

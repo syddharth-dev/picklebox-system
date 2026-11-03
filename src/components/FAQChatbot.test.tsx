@@ -31,6 +31,7 @@ describe("PickleBot account isolation", () => {
     expect(screen.queryByText("My private booking question")).not.toBeInTheDocument();
     await act(async () => resolve({ data: { reply: "Private reply for player A" }, error: null }));
     expect(screen.queryByText("Private reply for player A")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
     expect(screen.getByRole("textbox", { name: "Ask PickleBot" })).toBeEnabled();
   });
   it("keeps anonymous chat disabled and offers help", () => {
@@ -39,5 +40,11 @@ describe("PickleBot account isolation", () => {
     fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
     expect(screen.getByRole("textbox", { name: "Ask PickleBot" })).toBeDisabled();
     expect(screen.getByRole("link", { name: "browse common questions" })).toHaveAttribute("href", "/help");
+  });
+  it("closes with Escape and returns focus to the chat trigger", async () => {
+    render(<Chat />);
+    fireEvent.click(screen.getByRole("button", { name: "Open chat" }));
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "PickleBot assistant" }), { key: "Escape" });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Open chat" })).toHaveFocus());
   });
 });
