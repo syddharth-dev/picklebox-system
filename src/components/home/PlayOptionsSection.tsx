@@ -29,9 +29,9 @@ export function PlayOptionsSection() {
   return (
     <section aria-labelledby="play-options-title" className="site-container site-section">
       <div className="mx-auto max-w-3xl text-center">
-        <h2 id="play-options-title" className="section-title">Your next game starts here.</h2>
+        <h2 id="play-options-title" className="section-title">Choose how you want to play.</h2>
         <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
-          Bring your friends or meet your next playing partners. There is a place for you on court.
+          Reserve a court for your group, join a scheduled session on your own, or return to a confirmed booking.
         </p>
       </div>
       <div className="mt-10 grid gap-6 md:mt-14 md:grid-cols-3 lg:gap-8">

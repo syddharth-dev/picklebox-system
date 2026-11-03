@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -55,7 +54,7 @@
   footer :focus-visible, .bg-brand-ink :focus-visible { outline-color: #B7E34B; }
   input, select, textarea { accent-color: #142B3B; }
   input[type="date"] { min-width: 0; }
-  a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+  a, button, input, select, textarea { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 }
 
 @layer components {

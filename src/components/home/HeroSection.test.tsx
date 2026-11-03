@@ -21,9 +21,12 @@ describe("Homepage booking shortcut", () => {
   });
   it("uses the original venue photograph and the supported booking window", () => {
     render(<MemoryRouter><HeroSection /></MemoryRouter>);
-    expect(screen.getByRole("img", { name: /blue indoor courts/ })).toHaveAttribute("src", expect.stringContaining("courts.jpg"));
+    const image = screen.getByRole("img", { name: /blue indoor courts/ });
+    expect(image).toHaveAttribute("src", expect.stringContaining("courts.jpg"));
+    expect(image).toHaveAttribute("srcset", expect.stringContaining("courts-720.jpg"));
     const input = screen.getByLabelText("When do you want to play?");
     expect(input).toHaveAttribute("min", venueDate());
     expect(input).toHaveAttribute("max", format(addDays(parseISO(venueDate()), 60), "yyyy-MM-dd"));
+    expect(input).toHaveAccessibleDescription(/60 days ahead/i);
   });
 });
