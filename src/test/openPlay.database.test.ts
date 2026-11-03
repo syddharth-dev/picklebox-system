@@ -80,6 +80,7 @@ beforeAll(async () => {
   if (process.env.OPENPLAY_BASELINE !== "1") {
     await db.exec(migration("20261029120000_open_play_reliability.sql"));
   }
+  await db.exec(migration("20261103193000_public_open_play_discovery.sql"));
 }, 120_000);
 
 beforeEach(async () => {
@@ -176,6 +177,17 @@ describe("Open Play database registration and waitlist", () => {
     await register(id, other);
     expect((await db.query("SELECT registered_count::int, waitlist_count::int, my_status, my_waitlist_position FROM list_open_play_sessions()")).rows)
       .toEqual([{ registered_count: 1, waitlist_count: 1, my_status: "waitlisted", my_waitlist_position: 1 }]);
+  });
+  it("lets anonymous visitors read session summaries without table access", async () => {
+    await session({ price_php: 150 });
+    await asUser(null);
+    await db.exec("SET ROLE anon");
+    const rows = (await db.query("SELECT price_php::int, registered_count::int, my_status FROM list_open_play_sessions()" )).rows;
+    await db.exec("RESET ROLE");
+    expect(rows).toEqual([{ price_php: 150, registered_count: 0, my_status: null }]);
+    await db.exec("SET ROLE anon");
+    await expect(db.query("SELECT * FROM open_play_registrations")).rejects.toThrow();
+    await db.exec("RESET ROLE");
   });
 });
 

@@ -83,7 +83,6 @@ export function useOpenPlaySessions() {
   useOpenPlayUpdates();
   return useQuery({
     queryKey: ["open-play", "sessions", user?.id],
-    enabled: !!user,
     // RLS intentionally hides other players' registration events.
     refetchInterval: 15_000,
     queryFn: async () => {

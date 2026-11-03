@@ -41,10 +41,13 @@ describe("Open Play cache and requests", () => {
     expect(hook.result.current.data).toBeUndefined();
     await waitFor(() => expect(hook.result.current.data?.[0].user_id).toBe("second"));
   });
-  it("does not make session or roster RPC calls while signed out", async () => {
+  it("loads public session summaries but keeps roster requests signed-in only", async () => {
     state.userId = null;
-    renderHook(() => { useOpenPlaySessions(); useOpenPlayRoster("session"); }, { wrapper });
-    expect(state.rpc).not.toHaveBeenCalled();
+    const sessions = renderHook(() => useOpenPlaySessions(), { wrapper });
+    renderHook(() => useOpenPlayRoster("session"), { wrapper });
+    await waitFor(() => expect(sessions.result.current.isSuccess).toBe(true));
+    expect(state.rpc).toHaveBeenCalledTimes(1);
+    expect(state.rpc).toHaveBeenCalledWith("list_open_play_sessions");
   });
   it("invalidates attendance, dashboard, QR, player and admin lists after a change", async () => {
     const keys = [["open-play", "sessions", "first"], ["admin", "today", "open-play"],

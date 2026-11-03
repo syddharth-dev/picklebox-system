@@ -3,30 +3,32 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { lazy, Suspense } from "react";
 import { AuthProvider } from "@/hooks/useAuth";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
-import Courts from "./pages/Courts";
-import OpenPlay from "./pages/OpenPlay";
-import AdminOpenPlay from "./pages/admin/AdminOpenPlay";
-import Checkout from "./pages/Checkout";
-import Confirmation from "./pages/Confirmation";
-import Bookings from "./pages/Bookings";
-import Profile from "./pages/Profile";
-import Auth from "./pages/Auth";
-import Help from "./pages/Help";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import AdminCourts from "./pages/admin/AdminCourts";
-import AdminBookings from "./pages/admin/AdminBookings";
-import AdminReservations from "./pages/admin/AdminReservations";
-import AdminPayments from "./pages/admin/AdminPayments";
-import AdminUsers from "./pages/admin/AdminUsers";
-import AdminCheckIn from "./pages/admin/AdminCheckIn";
-import AdminAttendance from "./pages/admin/AdminAttendance";
-import AdminSettings from "./pages/admin/AdminSettings";
-import NotFound from "./pages/NotFound";
 import { FAQChatbot } from "@/components/FAQChatbot";
 import { RouteScrollReset } from "@/components/layout/RouteScrollReset";
+
+const Courts = lazy(() => import("./pages/Courts"));
+const OpenPlay = lazy(() => import("./pages/OpenPlay"));
+const Checkout = lazy(() => import("./pages/Checkout"));
+const Confirmation = lazy(() => import("./pages/Confirmation"));
+const Bookings = lazy(() => import("./pages/Bookings"));
+const Profile = lazy(() => import("./pages/Profile"));
+const Auth = lazy(() => import("./pages/Auth"));
+const Help = lazy(() => import("./pages/Help"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+const AdminOpenPlay = lazy(() => import("./pages/admin/AdminOpenPlay"));
+const AdminDashboard = lazy(() => import("./pages/admin/AdminDashboard"));
+const AdminCourts = lazy(() => import("./pages/admin/AdminCourts"));
+const AdminBookings = lazy(() => import("./pages/admin/AdminBookings"));
+const AdminReservations = lazy(() => import("./pages/admin/AdminReservations"));
+const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
+const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
+const AdminCheckIn = lazy(() => import("./pages/admin/AdminCheckIn"));
+const AdminAttendance = lazy(() => import("./pages/admin/AdminAttendance"));
+const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
 
 const queryClient = new QueryClient();
 
@@ -38,10 +40,11 @@ const App = () => (
         <TooltipProvider>
           <Toaster />
           <Sonner />
-          <Routes>
+          <Suspense fallback={<div role="status" className="grid min-h-screen place-items-center bg-background text-sm text-muted-foreground">Loading…</div>}>
+            <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/courts" element={<Courts />} />
-            <Route path="/open-play" element={<ProtectedRoute><OpenPlay /></ProtectedRoute>} />
+            <Route path="/open-play" element={<OpenPlay />} />
             <Route path="/admin/open-play" element={<ProtectedRoute requireAdmin><AdminOpenPlay /></ProtectedRoute>} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/help" element={<Help />} />
@@ -68,7 +71,8 @@ const App = () => (
 
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </Suspense>
           <FAQChatbot />
         </TooltipProvider>
       </AuthProvider>
