@@ -64,6 +64,7 @@ beforeAll(async () => {
   await db.exec(migration("20261029120000_open_play_reliability.sql"));
   await db.exec(migration("20261031120000_player_booking_time_guards.sql"));
   if (process.env.SECURITY_AUDIT_BASELINE !== "1") await db.exec(migration("20261031150000_api_security_audit.sql"));
+  await db.exec(migration("20261104090000_public_court_availability.sql"));
 }, 120_000);
 
 beforeEach(async () => {
@@ -120,9 +121,33 @@ describe("API database authorization under real SQL roles", () => {
   it("denies unauthenticated private reads and RPC execution", async () => {
     await asUser(null);
     await expect(db.query("SELECT * FROM payments")).rejects.toThrow(/permission denied/);
-    await expect(db.query("SELECT * FROM get_reserved_slots(CURRENT_DATE)")).rejects.toThrow(/permission denied/);
+    await expect(db.query("SELECT * FROM booking_slots")).rejects.toThrow(/permission denied/);
+    await expect(db.query("SELECT * FROM bookings")).rejects.toThrow(/permission denied/);
     await expect(db.query("SELECT consume_user_api_quota('notification')")).rejects.toThrow(/permission denied/);
+    await expect(book()).rejects.toThrow(/permission denied/);
     expect((await db.query("SELECT name FROM courts")).rows).toEqual([{ name: "Court 1" }]);
+  });
+  it("allows signed-out visitors to see reserved hours without private booking details", async () => {
+    await book("17:00", "18:00");
+    await asUser(admin);
+    await db.query("SELECT admin_create_court_block($1,(now() AT TIME ZONE 'Asia/Manila')::date+1,ARRAY['18:00'::time],'Private client contact')", [court]);
+    await asUser(null);
+    expect((await db.query("SELECT * FROM get_reserved_slots((now() AT TIME ZONE 'Asia/Manila')::date+1) ORDER BY start_time")).rows).toEqual([
+      { court_id: court, start_time: "17:00:00", status: "pending", is_admin_block: false, admin_note: null },
+      { court_id: court, start_time: "18:00:00", status: "paid", is_admin_block: true, admin_note: null },
+    ]);
+    expect((await db.query("SELECT * FROM get_reserved_slots((now() AT TIME ZONE 'Asia/Manila')::date+2)")).rows).toEqual([]);
+  });
+  it("includes Open Play hours in signed-out availability", async () => {
+    await asUser(admin);
+    await db.query(`INSERT INTO open_play_sessions
+      (session_date,start_time,end_time,court_ids,max_players,price_php,created_by)
+      VALUES((now() AT TIME ZONE 'Asia/Manila')::date+2,'18:00','20:00',ARRAY[$1::uuid],4,100,$2)`, [court, admin]);
+    await asUser(null);
+    expect((await db.query("SELECT * FROM get_reserved_slots((now() AT TIME ZONE 'Asia/Manila')::date+2) ORDER BY start_time")).rows).toEqual([
+      { court_id: court, start_time: "18:00:00", status: "paid", is_admin_block: true, admin_note: "Open Play" },
+      { court_id: court, start_time: "19:00:00", status: "paid", is_admin_block: true, admin_note: "Open Play" },
+    ]);
   });
   it("denies function creation and future default-public execution", async () => {
     await expect(db.exec("CREATE FUNCTION public.attack() RETURNS int LANGUAGE sql AS $$ SELECT 1 $$")).rejects.toThrow(/permission denied/);
