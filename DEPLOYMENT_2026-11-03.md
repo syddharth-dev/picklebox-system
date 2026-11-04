@@ -49,6 +49,49 @@ Publish a new Vercel deployment containing this configuration, then verify the a
 
 ## Future CLI commands
 
+### November 4 follow-up: signed-out court availability
+
+The public Courts page loaded all three active courts, but its availability RPC
+returned HTTP 401 / `42501` (`permission denied for function get_reserved_slots`)
+for signed-out visitors. This caused the page to show its availability error.
+
+Applied `20261104090000_public_court_availability.sql` to production and recorded
+that version as applied. It grants `anon` execution of the existing narrow,
+read-only availability RPC. The hosted function's private-note masking was
+verified before granting access. No table privileges or booking/payment records
+were changed. The older pending `20261103193000_public_open_play_discovery.sql`
+migration was not applied as part of this fix.
+
+Afterward, anonymous requests returned HTTP 200 for the three active courts and
+availability on November 4 and 5. All **235 tests across 29 files** passed,
+including new actual-SQL-role regressions for guest availability, private-note
+masking, Open Play occupied hours, and continued denial of private reads and
+booking creation. Changed-test lint and `git diff --check` passed. This is a
+backend-only fix; no frontend deployment is required. Physical mobile/browser
+verification was unavailable because the browser access host was disconnected.
+
+The subsequent guest-checkout handoff change is **local and still requires a
+frontend deployment**. Courts now sends the selected date/courts/hours to Auth,
+which validates and forwards them to checkout after login or a signup session.
+Expired selections return to Courts. The 45 relevant navigation, auth, booking
+validation and checkout tests pass, as do application TypeScript and the
+production build. Auth/test lint passes; Courts retains the same three existing
+`react-hooks/set-state-in-effect` findings as the committed baseline. Actual
+email verification and physical mobile checkout have not been exercised.
+
+The admin sidebar/search/pagination follow-up is also **local and requires a
+frontend deployment**. It adds a white sidebar, booking search and status/court/
+booking-date filters, and shared 10-item pagination across applicable admin
+lists. Pagination and filtering operate on the existing loaded query results;
+attendance exports and dashboard aggregates retain their full loaded inputs.
+All **258 tests across 32 files** pass, along with application TypeScript,
+production build and `git diff --check`. The changed-source lint comparison
+introduces no findings; pre-existing lint findings remain. Browser visual QA
+was unavailable because the browser access host was disconnected. No hosted
+admin records, schema or payment states were changed.
+
+### CLI reference
+
 This deployment used CLI **3.0.0**, whose remote-target flag is `--remote=<project-ref>` for these commands:
 
 ```powershell
