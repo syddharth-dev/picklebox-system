@@ -34,7 +34,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">The Pickle Box<span className="mt-1 block text-xs font-normal text-sidebar-foreground/70">Club management</span></span>
           </Link>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {groups.map((group) => (
             <SidebarGroup key={group.label}>
               <SidebarGroupLabel className="mb-2 text-xs font-medium text-sidebar-foreground/70">{group.label}</SidebarGroupLabel>
