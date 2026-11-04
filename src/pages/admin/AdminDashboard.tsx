@@ -1,4 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,6 +58,9 @@ const AdminDashboard = () => {
   const { data: courts, isLoading: courtsLoading } = useAllCourts();
   const { data: todayBookings, isLoading: todayBookingsLoading } = useTodayBookings();
   const { data: todaySessions, isLoading: todaySessionsLoading } = useTodayOpenPlay();
+  const sessionPagination = useAdminPagination(todaySessions);
+  const todayPagination = useAdminPagination(todayBookings);
+  const recentPagination = useAdminPagination(bookings);
 
   const isLoading = bookingsLoading || courtsLoading;
 
@@ -66,7 +71,7 @@ const AdminDashboard = () => {
       .reduce((sum, b: any) => sum + Number(b.total_amount || 0), 0) || 0;
   const activeCourts = courts?.filter((c) => c.is_active)?.length || 0;
   const pendingPayments = bookings?.filter((b: any) => b.status === "pending").length || 0;
-  const recentBookings = bookings?.slice(0, 5) || [];
+  const recentBookings = recentPagination.rows;
 
   const bookingCheckIns = (todayBookings ?? []).filter((b: any) => !!b.checked_in_at).length;
   const sessionCheckIns = (todaySessions ?? []).reduce((s, x) => s + x.checked_in, 0);
@@ -174,7 +179,7 @@ const AdminDashboard = () => {
               ) : (todaySessions ?? []).length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No sessions scheduled today</p>
               ) : (
-                todaySessions!.map((s) => (
+                sessionPagination.rows.map((s) => (
                   <div
                     key={s.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
@@ -202,6 +207,7 @@ const AdminDashboard = () => {
                 ))
               )}
             </CardContent>
+            {!todaySessionsLoading && <AdminPagination label="Today's Open Play" pagination={sessionPagination} />}
           </Card>
 
           <Card>
@@ -219,7 +225,7 @@ const AdminDashboard = () => {
               ) : (todayBookings ?? []).length === 0 ? (
                 <p className="text-muted-foreground text-center py-8">No bookings for today</p>
               ) : (
-                todayBookings!.map((b: any) => (
+                todayPagination.rows.map((b) => (
                   <div
                     key={b.id}
                     className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border p-4"
@@ -251,6 +257,7 @@ const AdminDashboard = () => {
                 ))
               )}
             </CardContent>
+            {!todayBookingsLoading && <AdminPagination label="Today's bookings" pagination={todayPagination} />}
           </Card>
         </div>
 
@@ -350,7 +357,7 @@ const AdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {recentBookings.map((booking: any) => (
+                    {recentBookings.map((booking) => (
                       <TableRow key={booking.id}>
                         <td className="py-4 px-4 font-mono text-sm text-foreground">{booking.reference_code || "—"}</td>
                         <td className="py-4 px-4 text-sm text-muted-foreground">{booking.courts?.name || "Unknown"}</td>
@@ -366,6 +373,7 @@ const AdminDashboard = () => {
                   </TableBody>
               </Table>
             )}
+            {!isLoading && <AdminPagination label="Recent bookings" pagination={recentPagination} />}
           </CardContent>
         </Card>
       </div>

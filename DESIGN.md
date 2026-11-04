@@ -7,7 +7,7 @@ Updated November 3, 2026. The direction is a community court club: court-signage
 | Role | Value | Use |
 | --- | --- | --- |
 | Pickle Green | `#B7E34B` | Booking panels, primary marketing actions, active admin navigation, supporting badges |
-| Deep Navy | `#142B3B` | Display text, primary light-theme controls, footer, admin sidebar |
+| Deep Navy | `#142B3B` | Display text, primary light-theme controls, footer, admin navigation text |
 | Off-white | `#F8FAFC` | Default light-theme canvas |
 | White | `#FFFFFF` | Navigation, cards, forms and photo margins |
 
@@ -29,6 +29,17 @@ The homepage opens with the original brand tagline and a responsive real-court p
 The booking guide uses three numbered icon circles connected by a dashed path, centered in three columns on desktop and stacked along a vertical path on mobile. A decorative pickleball travels once along that same measured path when the guide enters view, with sizing updated when the layout changes. Native CSS [offset-path](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/offset-path) and [offset-distance](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/offset-distance) provide the motion. The feature-card sea rises 32px on pointer hover or keyboard focus without moving its text or actions. Reduced-motion settings disable both effects. Payment verification remains explicit before QR access. The two supplied Tripket screenshots (1920 × 1020 including browser chrome) guide only the feature-card and booking-guide composition: generous section spacing, clear centered headings, colored card footers and connected steps. The existing Pickle Box palette, fonts, capabilities and surrounding homepage remain the authority. No screenshot is shipped as UI, and no exact visual-match claim is made.
 
 Operational pages share a page-heading component, form controls, accessible dialogs and status styles. The court grid can scroll horizontally when its columns need more room on narrow screens. Slots support keyboard-generated clicks and announce selection state. The admin sidebar groups all existing destinations into club operations and management; its tables and workflows remain intact.
+
+The admin sidebar has a white surface with navy text and pale-green hover states
+in both themes, retaining the green active navigation item. Admin record lists
+show 10 items per page with result ranges and first/previous/next/last controls.
+Pagination applies to bookings, payments, members, courts, reservation records,
+Open Play sessions and rosters, attendance tables, recent check-ins and dashboard lists. Booking
+search matches names, phones, booking references, GCash references, booking IDs
+and court names, with status, court and inclusive booking-date filters. Changing
+filters resets to page 1. Attendance exports and dashboard totals use the full
+loaded dataset rather than the displayed page. Calendar grids, forms and scanner
+results retain their task-specific layouts.
 
 Open Play discovery is public: signed-out visitors can inspect upcoming session schedules, skill levels, prices and availability. Registration status, participant details, registration, payment and cancellation remain authenticated. A narrow security-definer summary function exposes only discovery fields and aggregate counts to the anonymous role; underlying registration rows remain private. Authentication retains the selected session in an internal return path, so signing in can continue the task the player started. The Help route replaces broken FAQ navigation, and confirmation links to Help instead of an unverified support email. Payment copy states that staff approval is required.
 

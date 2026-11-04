@@ -1,5 +1,5 @@
  import { useState } from "react";
- import { useLocation, useNavigate } from "react-router-dom";
+ import { Navigate, useLocation, useNavigate } from "react-router-dom";
  import { Navbar } from "@/components/layout/Navbar";
  import { Footer } from "@/components/layout/Footer";
  import { Button } from "@/components/ui/button";
@@ -12,13 +12,16 @@
   import { Loader2 } from "lucide-react";
   import { supabase } from "@/integrations/supabase/client";
   import communityImage from "@/assets/venue/community.jpg";
+  import { parseCheckoutState } from "@/lib/booking";
  
  const Auth = () => {
    const [isLoading, setIsLoading] = useState(false);
-   const { signIn, signUp } = useAuth();
+   const { user, signIn, signUp } = useAuth();
    const { toast } = useToast();
    const navigate = useNavigate();
    const location = useLocation();
+   const continuation = location.state as { from?: string; checkout?: unknown } | null;
+   const checkout = continuation?.from === "/checkout" ? parseCheckoutState(continuation.checkout) : null;
  
    // Login form state
    const [loginEmail, setLoginEmail] = useState("");
@@ -58,8 +61,9 @@
             title: "Welcome back!",
             description: "You have successfully logged in.",
           });
-          const from = (location.state as { from?: string } | null)?.from;
-          navigate(typeof from === "string" && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/auth") ? from : roleData ? "/admin" : "/");
+          const from = continuation?.from === "/checkout" && !checkout ? "/courts" : continuation?.from;
+          if (checkout) navigate("/checkout", { state: checkout });
+          else navigate(typeof from === "string" && from.startsWith("/") && !from.startsWith("//") && !from.startsWith("/auth") ? from : roleData ? "/admin" : "/");
         } else {
           navigate("/");
         }
@@ -123,6 +127,11 @@
      }
    };
  
+   // Signup may create a session immediately or after email verification.
+   if (user && !isLoading && continuation?.from === "/checkout") {
+     return <Navigate to={checkout ? "/checkout" : "/courts"} state={checkout} replace />;
+   }
+
    return (
      <div className="min-h-screen bg-background">
        <Navbar />

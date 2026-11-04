@@ -1,4 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,6 +63,7 @@ const AdminReservations = () => {
     },
   });
 
+  const pagination = useAdminPagination(blocks, dateStr);
   const slotInfo = useMemo(() => {
     const map = new Map<string, { status: "pending" | "paid"; isAdmin: boolean }>();
     (bookedRows || []).forEach((b) => {
@@ -242,7 +245,7 @@ const AdminReservations = () => {
             {!blocks?.length && (
               <p className="text-sm text-muted-foreground">No admin reservations for this date.</p>
             )}
-            {blocks?.map((b: any) => (
+            {pagination.rows.map((b) => (
               <div key={b.id} className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                 <div className="min-w-0">
                   <p className="font-medium text-foreground text-sm">
@@ -263,6 +266,7 @@ const AdminReservations = () => {
                 </div>
               </div>
             ))}
+            <AdminPagination label="Reservations" pagination={pagination} />
           </CardContent>
         </Card>
       </div>

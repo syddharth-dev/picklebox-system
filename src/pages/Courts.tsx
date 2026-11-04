@@ -233,20 +233,14 @@ const Courts = () => {
   const totalPrice = selections.reduce((s, sel) => s + sel.slots.length * sel.pricePerHour, 0);
 
   const handleProceed = () => {
-    if (availabilityUnavailable) return;
+    if (availabilityUnavailable || selections.length === 0) return;
+    const checkout = { date: dateStr, selections, totalPrice };
     if (!user) {
       toast({ title: "Please sign in", description: "You need an account to book courts." });
-      navigate("/auth", { state: { from: "/courts?date=" + dateStr } });
+      navigate("/auth", { state: { from: "/checkout", checkout } });
       return;
     }
-    if (selections.length === 0) return;
-    navigate("/checkout", {
-      state: {
-        date: dateStr,
-        selections,
-        totalPrice,
-      },
-    });
+    navigate("/checkout", { state: checkout });
   };
 
   return (

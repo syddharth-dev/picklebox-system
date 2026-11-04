@@ -33,14 +33,16 @@ export function useAdminBookings() {
       if (error) throw error;
 
       // Fetch profile names for all unique user_ids
-      const userIds = [...new Set((data || []).map((b: any) => b.user_id))];
-      const { data: profiles } = await supabase
+      if (!data?.length) return [];
+      const userIds = [...new Set(data.map((b) => b.user_id))];
+      const { data: profiles, error: profilesError } = await supabase
         .from("profiles")
         .select("user_id, full_name, phone")
         .in("user_id", userIds);
 
-      const profileMap = new Map((profiles || []).map((p: any) => [p.user_id, p]));
-      return (data || []).map((b: any) => ({ ...b, profiles: profileMap.get(b.user_id) || null }));
+      if (profilesError) throw profilesError;
+      const profileMap = new Map((profiles || []).map((p) => [p.user_id, p]));
+      return data.map((b) => ({ ...b, profiles: profileMap.get(b.user_id) || null }));
     },
   });
 }

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Html5Qrcode } from "html5-qrcode";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,6 +43,7 @@ const AdminCheckIn = () => {
   const [result, setResult] = useState<CheckinLookup | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [recent, setRecent] = useState<RecentEntry[]>([]);
+  const recentPagination = useAdminPagination(recent, String(recent.length));
   const scannerRef = useRef<Html5Qrcode | null>(null);
   // Keep the last scanned/typed token so Confirm uses exactly what was looked up.
   const lastTokenRef = useRef<string | null>(null);
@@ -278,7 +281,7 @@ const AdminCheckIn = () => {
                   <p className="text-sm text-muted-foreground">No check-ins this session.</p>
                 ) : (
                   <ul className="space-y-2">
-                    {recent.map((r, i) => (
+                    {recentPagination.rows.map((r, i) => (
                       <li key={i} className="flex items-center justify-between text-sm">
                         <span className="text-foreground">{r.name}</span>
                         <span className="text-muted-foreground">
@@ -288,6 +291,7 @@ const AdminCheckIn = () => {
                     ))}
                   </ul>
                 )}
+                <AdminPagination label="Recent check-ins" pagination={recentPagination} />
               </CardContent>
             </Card>
           </div>

@@ -1,4 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,6 +23,7 @@ const statusVariant: Record<string, "default" | "secondary" | "destructive" | "o
 
 const AdminPayments = () => {
   const { data: payments, isLoading } = useAdminPayments();
+  const pagination = useAdminPagination(payments);
 
   return (
     <AdminLayout>
@@ -50,7 +53,7 @@ const AdminPayments = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {payments?.map((payment: any) => (
+                  {pagination.rows.map((payment) => (
                     <TableRow key={payment.id}>
                       <TableCell className="font-mono text-sm text-foreground">
                         {payment.bookings?.reference_code || "—"}
@@ -82,6 +85,7 @@ const AdminPayments = () => {
                 </TableBody>
               </Table>
             )}
+            {!isLoading && <AdminPagination label="Payments" pagination={pagination} />}
           </CardContent>
         </Card>
       </div>
