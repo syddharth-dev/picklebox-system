@@ -1,9 +1,12 @@
-import { Link, useLocation } from "react-router-dom";
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Calendar, CalendarPlus, ClipboardList, CreditCard, LayoutDashboard, LogOut, MapPin, QrCode, Settings, Trophy, Users } from "lucide-react";
 import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarInset, SidebarMenu, SidebarMenuButton, SidebarMenuItem, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { AppLogo } from "@/components/AppLogo";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 const groups = [
   { label: "At the club", items: [
@@ -24,7 +27,25 @@ const groups = [
 
 export function AdminLayout({ children }: { children: React.ReactNode }) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+  const { toast } = useToast();
+  const [loggingOut, setLoggingOut] = useState(false);
   const currentPage = groups.flatMap((group) => group.items).find((item) => item.href === location.pathname)?.label || "Overview";
+
+  const handleLogout = async () => {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    try {
+      await signOut();
+      navigate("/", { replace: true });
+    } catch {
+      toast({ title: "Could not log out", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setLoggingOut(false);
+    }
+  };
+
   return (
     <SidebarProvider defaultOpen>
       <Sidebar collapsible="icon" className="border-sidebar-border">
@@ -34,7 +55,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">The Pickle Box<span className="mt-1 block text-xs font-normal text-sidebar-foreground/70">Club management</span></span>
           </Link>
         </SidebarHeader>
-        <SidebarContent>
+        <SidebarContent className="[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {groups.map((group) => (
             <SidebarGroup key={group.label}>
               <SidebarGroupLabel className="mb-2 text-xs font-medium text-sidebar-foreground/70">{group.label}</SidebarGroupLabel>
@@ -52,8 +73,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           ))}
         </SidebarContent>
         <SidebarFooter className="border-t border-sidebar-border p-3">
-          <SidebarMenu><SidebarMenuItem><SidebarMenuButton asChild tooltip="Back to the website" className="h-11">
-            <Link to="/"><LogOut /><span>Back to the website</span></Link>
+          <SidebarMenu><SidebarMenuItem><SidebarMenuButton type="button" tooltip="Logout" aria-label="Logout" className="h-11" disabled={loggingOut} onClick={() => void handleLogout()}>
+            <LogOut /><span>{loggingOut ? "Logging out..." : "Logout"}</span>
           </SidebarMenuButton></SidebarMenuItem></SidebarMenu>
         </SidebarFooter>
       </Sidebar>
@@ -62,7 +83,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-3"><SidebarTrigger aria-label="Toggle admin navigation" /><span className="hidden text-xs text-muted-foreground sm:inline">Club management</span><span className="hidden text-border sm:inline">/</span><p className="text-sm font-semibold">{currentPage}</p></div>
           <div className="flex items-center gap-2"><ThemeToggle /><Button asChild size="sm" variant="outline"><Link to="/admin/check-in"><QrCode className="h-4 w-4" />Check-in</Link></Button></div>
         </header>
-        <main id="main-content" className="min-w-0 flex-1">{children}</main>
+        {/* Leave room below page controls for the fixed PickleBot launcher. */}
+        <main id="main-content" className="min-w-0 flex-1 pb-24">{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );
