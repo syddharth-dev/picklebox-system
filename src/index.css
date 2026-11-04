@@ -19,10 +19,10 @@
     --destructive: 0 67% 44%; --destructive-foreground: 0 0% 100%;
     --border: 205 19% 86%; --input: 205 19% 80%; --ring: 204.6153846154 49.3670886076% 15.4901960784%;
     --radius: 0.75rem;
-    --sidebar-background: 204.6153846154 49.3670886076% 15.4901960784%; --sidebar-foreground: 210 40% 98%;
+    --sidebar-background: 0 0% 100%; --sidebar-foreground: 204.6153846154 49.3670886076% 15.4901960784%;
     --sidebar-primary: 77.3684210526 73.0769230769% 59.2156862745%; --sidebar-primary-foreground: 205 49% 15%;
-    --sidebar-accent: 205 39% 23%; --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 205 30% 28%; --sidebar-ring: 77 73% 59%; --sidebar: 205 49% 15%;
+    --sidebar-accent: 77 52% 92%; --sidebar-accent-foreground: 205 49% 15%;
+    --sidebar-border: 205 19% 86%; --sidebar-ring: 205 49% 15%; --sidebar: 0 0% 100%;
     --chart-1: 205 49% 15%; --chart-2: 77 73% 59%; --chart-3: 205 30% 45%; --chart-4: 77 40% 35%; --chart-5: 0 67% 44%;
     --primary-deep: 205 49% 15%; --secondary-deep: 77 73% 59%;
     --shadow-2xs: 0 1px 2px hsl(var(--brand-ink) / .03); --shadow-xs: 0 1px 4px hsl(var(--brand-ink) / .04);

@@ -31,13 +31,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader className="px-4 pb-5 pt-6 group-data-[collapsible=icon]:px-2">
           <Link to="/admin" aria-label="The Pickle Box admin home" className="flex items-center gap-3 overflow-hidden">
             <AppLogo className="h-12 w-16 rounded-md group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:w-8" />
-            <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">The Pickle Box<span className="mt-1 block text-xs font-normal text-sidebar-foreground/60">Club management</span></span>
+            <span className="text-sm font-semibold group-data-[collapsible=icon]:hidden">The Pickle Box<span className="mt-1 block text-xs font-normal text-sidebar-foreground/70">Club management</span></span>
           </Link>
         </SidebarHeader>
         <SidebarContent>
           {groups.map((group) => (
             <SidebarGroup key={group.label}>
-              <SidebarGroupLabel className="mb-2 text-xs font-medium text-sidebar-foreground/55">{group.label}</SidebarGroupLabel>
+              <SidebarGroupLabel className="mb-2 text-xs font-medium text-sidebar-foreground/70">{group.label}</SidebarGroupLabel>
               <SidebarGroupContent><SidebarMenu className="gap-1">
                 {group.items.map((item) => (
                   <SidebarMenuItem key={item.href}>

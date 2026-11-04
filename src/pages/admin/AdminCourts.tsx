@@ -1,4 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { useAllCourts } from "@/hooks/useCourts";
+import { useAllCourts, type Court } from "@/hooks/useCourts";
 import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -46,6 +48,7 @@ const defaultForm: CourtFormData = {
 
 const AdminCourts = () => {
   const { data: courts, isLoading } = useAllCourts();
+  const pagination = useAdminPagination(courts);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
@@ -89,7 +92,7 @@ const AdminCourts = () => {
     },
   });
 
-  const handleEdit = (court: any) => {
+  const handleEdit = (court: Court) => {
     setEditingId(court.id);
     setForm({
       name: court.name,
@@ -169,7 +172,7 @@ const AdminCourts = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {courts?.map((court) => (
+                  {pagination.rows.map((court) => (
                     <TableRow key={court.id}>
                       <TableCell>
                         <div>
@@ -193,6 +196,7 @@ const AdminCourts = () => {
                 </TableBody>
               </Table>
             )}
+            {!isLoading && <AdminPagination label="Courts" pagination={pagination} />}
           </CardContent>
         </Card>
       </div>

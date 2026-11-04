@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,6 +59,8 @@ const AdminAttendance = () => {
 
   const { data: roster, isLoading: rosterLoading } = useSessionAttendance(sessionId);
   const { data: bookings, isLoading: bookingsLoading } = useBookingAttendance(date);
+  const rosterPagination = useAdminPagination(roster, sessionId);
+  const bookingPagination = useAdminPagination(bookings, date);
 
   const session = sessions?.find((s: any) => s.id === sessionId);
 
@@ -199,7 +203,7 @@ const AdminAttendance = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {roster.map((r) => (
+                          {rosterPagination.rows.map((r) => (
                             <TableRow key={r.id}>
                               <TableCell className="text-foreground">
                                 <span className="font-medium">{r.full_name}</span>
@@ -227,6 +231,7 @@ const AdminAttendance = () => {
                         </TableBody>
                       </Table>
                     </div>
+                    <AdminPagination label="Session attendance" pagination={rosterPagination} />
                   </>
                 )}
               </CardContent>
@@ -298,7 +303,7 @@ const AdminAttendance = () => {
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {bookings.map((b) => (
+                          {bookingPagination.rows.map((b) => (
                             <TableRow key={b.id}>
                               <TableCell className="text-foreground">
                                 <span className="font-medium">{b.full_name}</span>
@@ -327,6 +332,7 @@ const AdminAttendance = () => {
                         </TableBody>
                       </Table>
                     </div>
+                    <AdminPagination label="Booking attendance" pagination={bookingPagination} />
                   </>
                 )}
               </CardContent>

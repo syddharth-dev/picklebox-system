@@ -2,6 +2,8 @@ import { useMemo, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { Plus, X, Check, UserX, CheckCircle2 } from "lucide-react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +49,7 @@ const SKILLS: OpenPlaySkill[] = ["all", "2.5-3.0", "3.5", "4.0+"];
 
 const AdminOpenPlay = () => {
   const { data: sessions, isLoading, error, refetch } = useAdminOpenPlaySessions();
+  const pagination = useAdminPagination(sessions);
   const { data: courts, error: courtsError, refetch: refetchCourts } = useAllCourts();
   const createSession = useCreateOpenPlaySession();
   const cancelSession = useCancelOpenPlaySession();
@@ -266,7 +269,7 @@ const AdminOpenPlay = () => {
           <Card>
             <CardContent className="p-4">
               <Accordion type="multiple">
-                {sessions!.map((s) => (
+                {pagination.rows.map((s) => (
                   <AccordionItem key={s.id} value={s.id}>
                     <AccordionTrigger className="hover:no-underline">
                       <div className="flex-1 flex items-center justify-between pr-4">
@@ -305,6 +308,7 @@ const AdminOpenPlay = () => {
                 ))}
               </Accordion>
             </CardContent>
+            <AdminPagination label="Open Play sessions" pagination={pagination} />
           </Card>
         )}
       </div>
@@ -324,6 +328,7 @@ function SessionRoster({
   isCancelling: boolean;
 }) {
   const { data: roster, isLoading, error, refetch } = useOpenPlayRoster(sessionId);
+  const pagination = useAdminPagination(roster, sessionId);
   const update = useAdminUpdateRegistration();
   const { toast } = useToast();
 
@@ -348,7 +353,7 @@ function SessionRoster({
         <p className="text-sm text-muted-foreground">No registrations yet.</p>
       ) : (
         <div className="space-y-2">
-          {list.map((r) => (
+          {pagination.rows.map((r) => (
             <div
               key={r.registration_id}
               className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/30"
@@ -416,6 +421,7 @@ function SessionRoster({
           ))}
         </div>
       )}
+      <AdminPagination label="Session roster" pagination={pagination} />
       {canCancel && (
         <Button size="sm" variant="destructive" disabled={isCancelling} onClick={async () => {
           try { await onCancelSession(); }

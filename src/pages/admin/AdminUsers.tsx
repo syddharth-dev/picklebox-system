@@ -1,4 +1,6 @@
 import { AdminLayout } from "@/components/admin/AdminLayout";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { useAdminPagination } from "@/hooks/useAdminPagination";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -37,6 +39,7 @@ const AdminUsers = () => {
     },
   });
 
+  const pagination = useAdminPagination(profiles);
   const getRoles = (userId: string) => {
     return roles?.filter((r) => r.user_id === userId).map((r) => r.role) || [];
   };
@@ -66,7 +69,7 @@ const AdminUsers = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {profiles?.map((profile) => (
+                  {pagination.rows.map((profile) => (
                     <TableRow key={profile.id}>
                       <TableCell>
                         <p className="font-medium text-foreground">
@@ -96,6 +99,7 @@ const AdminUsers = () => {
                 </TableBody>
               </Table>
             )}
+            {!isLoading && <AdminPagination label="Members" pagination={pagination} />}
           </CardContent>
         </Card>
       </div>
